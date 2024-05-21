@@ -5,7 +5,12 @@ description = "Text Adventure!"
 authors = [
     { name = "Adrian Lyjak", email = "adrianlyjak@gmail.com" }
 ]
-dependencies = []
+dependencies = [
+    "black>=24.4.2",
+    "python-dotenv>=1.0.1",
+    "ipykernel>=6.29.4",
+    "outlines>=0.0.41",
+]
 readme = "README.md"
 requires-python = ">= 3.11"
 

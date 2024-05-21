@@ -1,2 +1,4 @@
-def hello() -> str:
-    return "Hello from texty!"
+import dotenv
+
+print("hello")
+dotenv.load_dotenv()
