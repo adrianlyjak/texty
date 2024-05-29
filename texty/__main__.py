@@ -1,4 +1,5 @@
 import uuid
+from texty.database import initialize_db
 from texty.models import vllm
 from outlines import models, generate
 from texty.gamestate import GameState
@@ -9,11 +10,12 @@ from texty.game import GameREPL
 # From there, the program will generate a story based on the theme
 # While powered by a powerful LLM, gameplay is still restricted, and follows 
 # common text adventure rules: 
-# - predefined actinos
+# - predefined actions
 # - semi-predefined locations
 # - inventory
 def main():
     print("Welcome to Texty!")
+    initialize_db()
     while True:
         print("\nMain Menu:")
         print("1. New Game")
@@ -47,10 +49,10 @@ def load_game():
     game_repl = GameREPL(game_id, state)
     game_loop(game_repl)
 
-def game_loop(game_repl):
+def game_loop(game_repl: GameREPL):
     while True:
         command = input("> ").strip()
-        if command == "quit":
+        if command == "/quit":
             print("Exiting game...")
             break
         else:
