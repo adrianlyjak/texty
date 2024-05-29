@@ -1,7 +1,10 @@
 
 import sqlite3
 import json
+from datetime import datetime
 from typing import List, Dict
+
+from texty.gamestate import GameRow, GameState
 
 DATABASE_FILE = "texty.db"
 
@@ -12,7 +15,9 @@ def initialize_db():
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS games (
                 id TEXT PRIMARY KEY,
-                state TEXT NOT NULL
+                state TEXT NOT NULL,
+                created TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated TEXT NOT NULL
             )
         ''')
         cursor.execute('''
@@ -26,17 +31,18 @@ def initialize_db():
         ''')
         conn.commit()
 
-def save_game_state(game_id: str, state: Dict):
+def save_game_state(game_id: str, state: GameState):
     """Save the game state with the given game ID."""
     with sqlite3.connect(DATABASE_FILE) as conn:
         cursor = conn.cursor()
+        now = datetime.utcnow().isoformat()
         cursor.execute('''
-            INSERT OR REPLACE INTO games (id, state)
-            VALUES (?, ?)
-        ''', (game_id, json.dumps(state)))
+            INSERT OR REPLACE INTO games (id, state, updated)
+            VALUES (?, ?, ?)
+        ''', (game_id, state.model_dump_json(), now))
         conn.commit()
 
-def load_game_state(game_id: str) -> Dict:
+def load_game_state(game_id: str) -> GameState:
     """Load the game state by game ID."""
     with sqlite3.connect(DATABASE_FILE) as conn:
         cursor = conn.cursor()
@@ -46,15 +52,15 @@ def load_game_state(game_id: str) -> Dict:
         row = cursor.fetchone()
         return json.loads(row[0]) if row else None
 
-def list_game_ids() -> List[str]:
-    """List all game IDs."""
+def list_games() -> List[GameRow]:
+    """List all game IDs along with the games description and the last updated date"""
     with sqlite3.connect(DATABASE_FILE) as conn:
         cursor = conn.cursor()
         cursor.execute('''
-            SELECT id FROM games
+            SELECT id, state, created, updated FROM games
         ''')
         rows = cursor.fetchall()
-        return [row[0] for row in rows]
+        return [GameRow(row[0], row[1], row[2], row[3]) for row in rows]
 
 def log_message_response(game_id: str, message: str, response: str):
     """Log the LLM message and response."""

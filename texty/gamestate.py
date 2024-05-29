@@ -7,6 +7,12 @@ from typing import List
 #     results: Optional[List[str]]
 
 
+class GameRow(BaseModel):
+    id: str
+    state: str
+    created: str
+    updated: str
+
 class GameState(BaseModel):
     """
     All the game state

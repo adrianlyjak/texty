@@ -1,7 +1,5 @@
 import uuid
-from texty.database import initialize_db, list_game_ids, load_game_state
-from texty.models import vllm
-from outlines import models, generate
+from texty import database
 from texty.gamestate import GameState
 from texty.game import GameREPL
 
@@ -15,7 +13,7 @@ from texty.game import GameREPL
 # - inventory
 def main():
     print("Welcome to Texty!")
-    initialize_db()
+    database.initialize_db()
     while True:
         print("\nMain Menu:")
         print("1. New Game")
@@ -38,30 +36,29 @@ def new_game():
     state = GameState(description=description)
     game_id = str(uuid.uuid4())  # Generate a new random UUID for game ID
     game_repl = GameREPL(game_id, state)
+    database.save_game_state(game_id, state)
     game_loop(game_repl)
 
 def load_game():
-    game_ids = list_game_ids()
-    if not game_ids:
+    games = database.list_games().sorted(key=lambda x: x.updated, reverse=True)
+    if not games:
         print("No saved games found.")
         return
 
     print("Available games:")
-    for idx, gid in enumerate(game_ids, start=1):
-        print(f"{idx}. {gid}")
+    for idx, game in enumerate(games, start=1):
+        gs = GameState.model_validate_json(game.state)
+        print(f"{idx}. {gs.description} (Last updated: {game.updated})")
 
     choice = input("Enter the number of the game you want to load: ").strip()
-    if not choice.isdigit() or int(choice) < 1 or int(choice) > len(game_ids):
+    if not choice.isdigit() or int(choice) < 1 or int(choice) > len(games):
         print("Invalid choice.")
         return
 
-    game_id = game_ids[int(choice) - 1]
-    state = load_game_state(game_id)
-    if state is None:
-        print("Failed to load the game state.")
-        return
+    game = games[int(choice) - 1]
+    state = GameState.model_validate_json(game.state)
 
-    game_repl = GameREPL(game_id, GameState(**state))
+    game_repl = GameREPL(game.id, state)
     game_loop(game_repl)
 
 def game_loop(game_repl: GameREPL):
