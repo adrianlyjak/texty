@@ -1,5 +1,5 @@
 import uuid
-from texty.database import initialize_db
+from texty.database import initialize_db, list_game_ids, load_game_state
 from texty.models import vllm
 from outlines import models, generate
 from texty.gamestate import GameState
@@ -41,12 +41,27 @@ def new_game():
     game_loop(game_repl)
 
 def load_game():
-    print("Loading game... (This is a placeholder)")
-    # Placeholder for loading game logic
-    description = "Loaded game description"
-    state = GameState(description=description)
-    game_id = str(uuid.uuid4())  # Generate a new random UUID for game ID
-    game_repl = GameREPL(game_id, state)
+    game_ids = list_game_ids()
+    if not game_ids:
+        print("No saved games found.")
+        return
+
+    print("Available games:")
+    for idx, gid in enumerate(game_ids, start=1):
+        print(f"{idx}. {gid}")
+
+    choice = input("Enter the number of the game you want to load: ").strip()
+    if not choice.isdigit() or int(choice) < 1 or int(choice) > len(game_ids):
+        print("Invalid choice.")
+        return
+
+    game_id = game_ids[int(choice) - 1]
+    state = load_game_state(game_id)
+    if state is None:
+        print("Failed to load the game state.")
+        return
+
+    game_repl = GameREPL(game_id, GameState(**state))
     game_loop(game_repl)
 
 def game_loop(game_repl: GameREPL):
