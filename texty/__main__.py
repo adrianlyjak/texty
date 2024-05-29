@@ -1,5 +1,7 @@
 from texty.models import vllm
 from outlines import models, generate
+from texty.gamestate import GameState
+from texty.game import GameREPL
 
 # "Texty" is a text adventure program with a REPL
 # you get to choose an adventure theme, or randomly generate one
