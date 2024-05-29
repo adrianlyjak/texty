@@ -10,47 +10,49 @@ from outlines import models, generate
 # - semi-predefined locations
 # - inventory
 def main():
-    # Initialize the game state.
-    # Starts with a main menu: offering options: new, load, quit
-    # 
-    # Screen New:
-    #  user writes out a scenario, then game initializes its state from the scenario. Proceeds to gameplay
-    #     - future enhancements: generate potential scenarios (with or without user input)
-    # Screen Load:
-    #     - selectable list of all previous scenarios (games are autosaved)
-    #     - on enter, proceeds to gameplay
-    # Gameplay:
-    #     - See game.py
+    print("Welcome to Texty!")
+    while True:
+        print("\nMain Menu:")
+        print("1. New Game")
+        print("2. Load Game")
+        print("3. Quit")
+        choice = input("Choose an option: ").strip()
 
-    
-    # TODO - entirely rewrite this commented section to follow above
-    pass
-    # current_location = "start"
-    # locations = {
-    #     "start": "You are in a small room with a door to the north.",
-    #     "north_room": "You are in a beautiful garden. There is a path to the south."
-    # }
-    
-    # print("Welcome to the tiny adventure!")
-    # print(locations[current_location])
-    
-    # # Main game loop
-    # while True:
-    #     command = input("> ").strip().lower()  # Read input from the user
-        
-    #     if command == "quit":
-    #         print("Thanks for playing!")
-    #         break
-    #     elif command == "look":
-    #         print(locations[current_location])
-    #     elif command == "go north" and current_location == "start":
-    #         current_location = "north_room"
-    #         print(locations[current_location])
-    #     elif command == "go south" and current_location == "north_room":
-    #         current_location = "start"
-    #         print(locations[current_location])
-    #     else:
-    #         print("I don't understand that command.")
+        if choice == "1":
+            new_game()
+        elif choice == "2":
+            load_game()
+        elif choice == "3":
+            print("Thanks for playing!")
+            break
+        else:
+            print("Invalid choice. Please select 1, 2, or 3.")
+
+def new_game():
+    description = input("Enter a description for your new game: ").strip()
+    state = GameState(description=description)
+    game_id = "game_1"  # Placeholder for game ID
+    game_repl = GameREPL(game_id, state)
+    game_loop(game_repl)
+
+def load_game():
+    print("Loading game... (This is a placeholder)")
+    # Placeholder for loading game logic
+    description = "Loaded game description"
+    state = GameState(description=description)
+    game_id = "game_1"  # Placeholder for game ID
+    game_repl = GameREPL(game_id, state)
+    game_loop(game_repl)
+
+def game_loop(game_repl):
+    while True:
+        command = input("> ").strip()
+        if command == "quit":
+            print("Exiting game...")
+            break
+        else:
+            response = game_repl.process_input(command)
+            print(response)
 
 if __name__ == "__main__":
     main()
