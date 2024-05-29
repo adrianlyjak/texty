@@ -1,3 +1,4 @@
+import uuid
 from texty.models import vllm
 from outlines import models, generate
 from texty.gamestate import GameState
@@ -33,7 +34,7 @@ def main():
 def new_game():
     description = input("Enter a description for your new game: ").strip()
     state = GameState(description=description)
-    game_id = "game_1"  # Placeholder for game ID
+    game_id = str(uuid.uuid4())  # Generate a new random UUID for game ID
     game_repl = GameREPL(game_id, state)
     game_loop(game_repl)
 
@@ -42,7 +43,7 @@ def load_game():
     # Placeholder for loading game logic
     description = "Loaded game description"
     state = GameState(description=description)
-    game_id = "game_1"  # Placeholder for game ID
+    game_id = str(uuid.uuid4())  # Generate a new random UUID for game ID
     game_repl = GameREPL(game_id, state)
     game_loop(game_repl)
 
