@@ -40,7 +40,8 @@ def new_game():
     game_loop(game_repl)
 
 def load_game():
-    games = database.list_games().sorted(key=lambda x: x.updated, reverse=True)
+    games = database.list_games()
+    games.sort(key=lambda x: x.updated, reverse=True)
     if not games:
         print("No saved games found.")
         return
@@ -62,6 +63,7 @@ def load_game():
     game_loop(game_repl)
 
 def game_loop(game_repl: GameREPL):
+    game_repl.initialize()
     while True:
         command = input("> ").strip()
         if command == "/quit":

@@ -60,7 +60,7 @@ def list_games() -> List[GameRow]:
             SELECT id, state, created, updated FROM games
         ''')
         rows = cursor.fetchall()
-        return [GameRow(row[0], row[1], row[2], row[3]) for row in rows]
+        return [GameRow(id=row[0], state=row[1], created=row[2], updated=row[3]) for row in rows]
 
 def log_message_response(game_id: str, message: str, response: str):
     """Log the LLM message and response."""

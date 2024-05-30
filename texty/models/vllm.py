@@ -15,7 +15,7 @@ def get_llm() -> LLM:
     return LLM(
         model_id,
         tensor_parallel_size=max(1, torch.cuda.device_count()),
-        quantization="gptq",
+        # quantization="gptq",
         # max_model_len=1024,
         max_num_seqs=16,
         # gpu_memory_utilization=0.8,
