@@ -69,7 +69,27 @@ class GameREPL:
 
     def show_location(self, n=3) -> str:
         """/location [n] - Command that prints information about the current location, and the past n locations"""
-        self.io.write_output("Current location and past {} locations.".format(n))
+        if not self.state.navigation_history:
+            self.io.write_output("No navigation history available.")
+            return
+
+        history = self.state.navigation_history[-n:]
+        scenes_dict = {scene.id: scene for scene in self.state.scenes}
+        location_details = []
+
+        for scene_id in history:
+            scene = scenes_dict.get(scene_id)
+            if scene:
+                details = (
+                    f"Scene ID: {scene.id}\n"
+                    f"Description: {scene.description}\n"
+                    f"Actions: {', '.join(scene.actions)}\n"
+                    f"Items: {', '.join(scene.items)}\n"
+                    f"Exits: {', '.join(scene.exits)}"
+                )
+                location_details.append(details)
+
+        self.io.write_output("Current location and past {} locations:\n\n{}".format(n, "\n\n".join(location_details)))
 
     def show_inventory(self) -> str:
         """/inventory - Command that prints information about the current inventory"""
