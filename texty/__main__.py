@@ -28,9 +28,6 @@ def main():
         elif choice == "3":
             print("Thanks for playing!")
             break
-        elif command.startswith("/text "):
-            text = command[len("/text "):]
-            print(game_repl.handle_text_command(text))
             print("Invalid choice. Please select 1, 2, or 3.")
 
 def new_game():
