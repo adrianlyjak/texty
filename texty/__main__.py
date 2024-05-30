@@ -30,7 +30,7 @@ def main():
             break
             print("Invalid choice. Please select 1, 2, or 3.")
 
-def new_game():
+def new_game(io):
     description = input("Enter a description for your new game: ").strip()
     state = GameState(description=description)
     game_id = str(uuid.uuid4())  # Generate a new random UUID for game ID
@@ -38,7 +38,7 @@ def new_game():
     database.save_game_state(game_id, state)
     game_loop(game_repl)
 
-def load_game():
+def load_game(io):
     games = database.list_games()
     games.sort(key=lambda x: x.updated, reverse=True)
     if not games:
