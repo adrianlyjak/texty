@@ -3,8 +3,9 @@ import outlines.generate.text
 from texty.gamestate import GameState
 
 import outlines
-from typing import Protocol
+from typing import Protocol, Any
 
+from texty.io import IOInterface
 from texty.models.vllm import get_chat_response
 from texty.prompts import gen_game_state
 
@@ -16,8 +17,10 @@ class GameREPL:
 
     state: GameState
     game_id: str
+    io: IOInterface
 
-    def __init__(self, game_id: str, state: GameState):
+    def __init__(self, game_id: str, state: GameState, io: IOInterface):
+        self.io = io
         self.state = state
         self.game_id = game_id
 
@@ -41,17 +44,17 @@ class GameREPL:
         cmds = input.strip().split(" ", 2)
         cmd = cmds[0]
         if cmd == "/help":
-            return self.show_help()
+            self.io.write_output(self.show_help())
         elif cmd == "/location":
-            return self.show_location(n=int(cmds[1]) if len(cmds) > 1 else 3)
+            self.io.write_output(self.show_location(n=int(cmds[1]) if len(cmds) > 1 else 3))
         elif cmd == "/inventory":
-            return self.show_inventory()
+            self.io.write_output(self.show_inventory())
         elif cmd == "/hint":
-            return self.show_actions(query=cmds[1] if len(cmds) > 1 else "")
+            self.io.write_output(self.show_actions(query=cmds[1] if len(cmds) > 1 else ""))
         elif cmd.startswith("/"):
-            return f"Unknown command '{cmd}'. Type /help for a list of commands, or otherwise type your input"
+            self.io.write_output(f"Unknown command '{cmd}'. Type /help for a list of commands, or otherwise type your input")
         else:
-            return self.take_action(input)
+            self.io.write_output(self.take_action(input))
 
     def show_help(self) -> str:
         """/help - Command that prints a list of available commands"""
