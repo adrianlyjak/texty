@@ -39,26 +39,26 @@ class GameREPL:
             pass
         
 
-    def process_input(self, input: str) -> str:
+    def process_input(self, input: str) -> None:
         """Parses the raw user input into one of the available commands"""
         cmds = input.strip().split(" ", 2)
         cmd = cmds[0]
         if cmd == "/help":
             self.io.write_output(self.show_help())
         elif cmd == "/location":
-            self.io.write_output(self.show_location(n=int(cmds[1]) if len(cmds) > 1 else 3))
+            self.show_location(n=int(cmds[1]) if len(cmds) > 1 else 3)
         elif cmd == "/inventory":
-            self.io.write_output(self.show_inventory())
+            self.show_inventory()
         elif cmd == "/hint":
-            self.io.write_output(self.show_actions(query=cmds[1] if len(cmds) > 1 else ""))
+            self.show_actions(query=cmds[1] if len(cmds) > 1 else "")
         elif cmd.startswith("/"):
             self.io.write_output(f"Unknown command '{cmd}'. Type /help for a list of commands, or otherwise type your input")
         else:
-            self.io.write_output(self.take_action(input))
+            self.take_action(input)
 
     def show_help(self) -> str:
         """/help - Command that prints a list of available commands"""
-        return (
+        self.io.write_output(
             "/help - Command that prints a list of available commands\n"
             "/location [n] - Command that prints information about the current location, and the past n locations\n"
             "/inventory - Command that prints information about the current inventory\n"
@@ -69,15 +69,15 @@ class GameREPL:
 
     def show_location(self, n=3) -> str:
         """/location [n] - Command that prints information about the current location, and the past n locations"""
-        pass
+        self.io.write_output("Current location and past {} locations.".format(n))
 
     def show_inventory(self) -> str:
         """/inventory - Command that prints information about the current inventory"""
-        pass
+        self.io.write_output("Current inventory details.")
 
     def show_actions(self, query: str) -> str:
         """/hint [query] - Command that prints a hint about the currently available actions and objectives"""
-        pass
+        self.io.write_output("Hint about the currently available actions and objectives.")
 
     def handle_text_command(self, text: str) -> str:
         """Handles the /text command"""
@@ -87,4 +87,4 @@ class GameREPL:
 
     def take_action(self, action: str) -> str:
         """/action [action] - Command that attempts to perform an action"""
-        pass
+        self.io.write_output("Attempting to perform action: {}".format(action))

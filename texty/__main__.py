@@ -80,8 +80,7 @@ def game_loop(game_repl: GameREPL):
             game_repl.io.write_output("Exiting game...")
             break
         else:
-            response = game_repl.process_input(command)
-            game_repl.io.write_output(response)
+            game_repl.process_input(command)
 
 
 if __name__ == "__main__":
