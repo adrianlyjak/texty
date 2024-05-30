@@ -24,7 +24,7 @@ from typing import List
 @outlines.prompt
 def gen_game_state(description: str):
     """
-    Generate a scenario based on the following game description: {description}
+    Generate a scenario based on the following game description: {{description}}
 
     First of all, envision an environment. List environment details wrapped in <Environment> </Environment> tags,
     Then list user objectives. This is what the player is trying to achieve. List objectives wrapped in <Objective> </Objective> tags.

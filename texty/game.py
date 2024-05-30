@@ -5,7 +5,7 @@ from texty.gamestate import GameState
 import outlines
 from typing import Protocol
 
-from texty.models.vllm import get_llm, get_outlines
+from texty.models.vllm import get_chat_response
 from texty.prompts import gen_game_state
 
 
@@ -30,17 +30,8 @@ class GameREPL:
             or self.state.scenes == []
             or self.state.objectives == []
         ):
-            # TODO: Implement LLM initialization
-            llm = get_llm()
-            chat = llm.get_tokenizer().apply_chat_template(
-                [
-                    {"role": "user", "content": gen_game_state(self.state.description)},
-                ],
-                tokenize=False,
-            )
-            model = get_outlines()
-            txt_gen = outlines.generate.text(model)
-            print(txt_gen(chat))
+            prompt = gen_game_state(self.state.description)
+            resp = get_chat_response(prompt)
             pass
         pass
 
