@@ -73,7 +73,11 @@ class GameREPL:
 
     def show_inventory(self) -> str:
         """/inventory - Command that prints information about the current inventory"""
-        self.io.write_output("Current inventory details.")
+        if not self.state.inventory:
+            self.io.write_output("Your inventory is empty.")
+        else:
+            inventory_list = "\n".join(f"- {item}" for item in self.state.inventory)
+            self.io.write_output(f"Current inventory:\n{inventory_list}")
 
     def show_actions(self, query: str) -> str:
         """/hint [query] - Command that prints a hint about the currently available actions and objectives"""
