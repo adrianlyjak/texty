@@ -37,7 +37,7 @@ def new_game():
     description = input("Enter a description for your new game: ").strip()
     state = GameState(description=description)
     game_id = str(uuid.uuid4())  # Generate a new random UUID for game ID
-    game_repl = GameREPL(game_id, state)
+    game_repl = GameREPL(game_id, state, io)
     database.save_game_state(game_id, state)
     game_loop(game_repl)
 
@@ -61,19 +61,19 @@ def load_game():
     game = games[int(choice) - 1]
     state = GameState.model_validate_json(game.state)
 
-    game_repl = GameREPL(game.id, state)
+    game_repl = GameREPL(game.id, state, io)
     game_loop(game_repl)
 
 def game_loop(game_repl: GameREPL):
     game_repl.initialize()
     while True:
-        command = input("> ").strip()
+        command = game_repl.io.read_input("> ").strip()
         if command == "/quit":
-            print("Exiting game...")
+            game_repl.io.write_output("Exiting game...")
             break
         else:
             response = game_repl.process_input(command)
-            print(response)
+            game_repl.io.write_output(response)
 
 if __name__ == "__main__":
     main()
