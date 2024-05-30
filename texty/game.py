@@ -68,6 +68,12 @@ class GameREPL:
         """/hint [query] - Command that prints a hint about the currently available actions and objectives"""
         pass
 
+    def handle_text_command(self, text: str) -> str:
+        """Handles the /text command"""
+        # Implement the logic for the /text command here
+        response = get_chat_response(text)
+        return response
+
     def take_action(self, action: str) -> str:
         """/action [action] - Command that attempts to perform an action"""
         pass
