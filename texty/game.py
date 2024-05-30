@@ -32,15 +32,9 @@ class GameREPL:
         ):
             prompt = gen_game_state(self.state.description)
             resp = get_chat_response(prompt)
+            # TODO - Parse the response and update the game state
             pass
-        return (
-            "/help - Command that prints a list of available commands\n"
-            "/location [n] - Command that prints information about the current location, and the past n locations\n"
-            "/inventory - Command that prints information about the current inventory\n"
-            "/hint [query] - Command that prints a hint about the currently available actions and objectives\n"
-            "/text [message] - Command that sends a message to the LLM and gets a response\n"
-            "/quit - Command that exits the game\n"
-        )
+        
 
     def process_input(self, input: str) -> str:
         """Parses the raw user input into one of the available commands"""
@@ -53,7 +47,7 @@ class GameREPL:
         elif cmd == "/inventory":
             return self.show_inventory()
         elif cmd == "/hint":
-            return self.show_actions(query=cmds[1])
+            return self.show_actions(query=cmds[1] if len(cmds) > 1 else "")
         elif cmd.startswith("/"):
             return f"Unknown command '{cmd}'. Type /help for a list of commands, or otherwise type your input"
         else:
@@ -61,7 +55,14 @@ class GameREPL:
 
     def show_help(self) -> str:
         """/help - Command that prints a list of available commands"""
-        pass
+        return (
+            "/help - Command that prints a list of available commands\n"
+            "/location [n] - Command that prints information about the current location, and the past n locations\n"
+            "/inventory - Command that prints information about the current inventory\n"
+            "/hint [query] - Command that prints a hint about the currently available actions and objectives\n"
+            "/text [message] - Command that sends a message to the LLM and gets a response\n"
+            "/quit - Command that exits the game\n"
+        )
 
     def show_location(self, n=3) -> str:
         """/location [n] - Command that prints information about the current location, and the past n locations"""
