@@ -3,7 +3,9 @@ import uuid
 from texty import database
 from texty.gamestate import GameState
 from texty.game import GameREPL, IOInterface
-from texty.io import RichInterface, StdIOInterface
+from texty.io import RichInterface, StdIOInterface, list_choice
+from texty.models.vllm import stream_chat_response
+from texty.prompts import gen_introduction_system
 
 
 # "Texty" is a text adventure program with a REPL
@@ -44,6 +46,9 @@ def main_menu(io: IOInterface):
 
 
 def new_game(io: IOInterface):
+    for x in stream_chat_response(gen_introduction_system()):
+        io.write_output(x, end="")
+    io.write_output("")
     description = io.read_input("Enter a description for your new game: ").strip()
     state = GameState(description=description)
     game_id = str(uuid.uuid4())  # Generate a new random UUID for game ID
@@ -88,4 +93,7 @@ def game_loop(game_repl: GameREPL):
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except KeyboardInterrupt:
+        print("\nExiting game...")

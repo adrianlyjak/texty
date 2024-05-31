@@ -44,6 +44,7 @@ def log_request(request: httpx.Request):
     )
     return request
 
+OPENAI_URI = "http://localhost:8000/v1"
 
 @lru_cache(maxsize=None)  # makes it a lazy singleton
 def get_outlines(
@@ -51,8 +52,9 @@ def get_outlines(
 ) -> models.VLLM | OpenAI:  # outlines is poorly typed around here
     if mode == "VLLM_API":
         client = AsyncOpenAI(
-            base_url="http://localhost:8000/v1",
+            base_url=OPENAI_URI,
             http_client=httpx.AsyncClient(event_hooks={"before_send": [log_request]}),
+            api_key="None",
         )
         config = OpenAIConfig(model="./Meta-Llama-3-70B-Instruct-GPTQ-4b", temperature=0.2)
         # tokenizer = Tokenizer() # tiktoken.encoding_for_model("gpt-4")
@@ -65,26 +67,36 @@ class Message(TypedDict):
     role: str
     content: str
 
+def apply_chat_template(prompt: str) -> str:
+    if mode == "VLLM_API":
+        return prompt
+    return (
+        get_local_vllm()
+        .get_tokenizer()
+        .apply_chat_template([
+                    {"role": "user", "content": prompt},
+                ],
+                tokenize=False,)
+    )
 
 def get_chat_response(prompt: str) -> str:
     model = get_outlines()
-    txt = ""
-    if mode == "VLLM_API":
-        txt = prompt
-    else:
-        txt = (
-            get_local_vllm()
-            .get_tokenizer()
-            .apply_chat_template(
-                [
-                    {"role": "user", "content": prompt},
-                ],
-                tokenize=False,
-            )
-        )
+    txt = apply_chat_template(prompt)
     txt_gen = outlines.generate.text(model)
     return txt_gen(txt)
 
+
+def stream_chat_response(prompt: str) -> Generator[str, None, None]:
+    if mode != "VLLM_API":
+        model = get_outlines()
+        txt = apply_chat_template(prompt)
+        txt_gen = outlines.generate.text(model)
+        yield from txt_gen.stream(txt)
+    else:
+        # TODO fix me, outlines not compatible for streaming with openai
+        # this should instead make a request to the OPENAI_URI
+        pass
+    
 
 if __name__ == "__main__":
     get_chat_response("whats the capital of paris?")
