@@ -3,7 +3,7 @@ from typing import Any, Generator, List, TypedDict
 import outlines
 from outlines import models
 from outlines.models.openai import OpenAI, OpenAIConfig
-from openai import AsyncOpenAI
+from openai import OpenAI as SyncOpenAI
 import httpx
 
 # from outlines.models.transformers import Transformers
@@ -51,7 +51,7 @@ def get_outlines(
     model_id=None,
 ) -> models.VLLM | OpenAI:  # outlines is poorly typed around here
     if mode == "VLLM_API":
-        client = AsyncOpenAI(
+        client = SyncOpenAI(
             base_url=OPENAI_URI,
             http_client=httpx.AsyncClient(event_hooks={"before_send": [log_request]}),
             api_key="None",
@@ -95,9 +95,9 @@ def stream_chat_response(prompt: str) -> Generator[str, None, None]:
     else:
         import httpx
 
-        async def fetch_stream():
-            async with httpx.AsyncClient() as client:
-                async with client.stream("POST", OPENAI_URI + "/chat/completions", json={
+        def fetch_stream():
+            with httpx.Client() as client:
+                with client.stream("POST", OPENAI_URI + "/chat/completions", json={
                     "model": "gpt-3.5-turbo",
                     "messages": [{"role": "user", "content": prompt}],
                     "stream": True,
