@@ -25,7 +25,7 @@ class StdIOInterface(IOInterface):
         return input(prompt)
 
     def write_output(self, message: str, end="\n") -> None:
-        print(message, end=end)from typing import List
+        print(message, end=end)
 
 def list_choice(io: IOInterface, prompt: str, choices: List[str]) -> int:
     """
