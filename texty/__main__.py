@@ -31,26 +31,16 @@ def main():
 
 def main_menu(io: IOInterface):
     database.initialize_db()
+    choices = ["New Game", "Load Game", "Quit"]
     while True:
-        io.write_output(
-            dedent(
-                """
-                1. New Game
-                2. Load Game
-                3. Quit"""
-            ).strip()
-        )
-        choice = io.read_input("Choose an option: ").strip()
-
-        if choice == "1":
+        choice = list_choice(io, "Choose an option: ", choices)
+        if choice == 1:
             new_game(io)
-        elif choice == "2":
+        elif choice == 2:
             load_game(io)
-        elif choice == "3":
+        elif choice == 3:
             io.write_output("Thanks for playing!")
             break
-        else:
-            io.write_output("Invalid choice. Please select 1, 2, or 3.")
 
 
 def new_game(io: IOInterface):
