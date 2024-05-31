@@ -102,7 +102,7 @@ def stream_chat_response(prompt: str) -> Generator[str, None, None]:
                     "messages": [{"role": "user", "content": prompt}],
                     "stream": True,
                 }) as response:
-                    async for chunk in response.aiter_text():
+                    for chunk in response.iter_text():
                         if chunk:
                             yield chunk
 
