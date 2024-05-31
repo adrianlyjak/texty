@@ -1,8 +1,9 @@
+from textwrap import dedent
 import uuid
 from texty import database
 from texty.gamestate import GameState
 from texty.game import GameREPL, IOInterface
-from texty.io import StdIOInterface
+from texty.io import RichInterface, StdIOInterface
 
 
 # "Texty" is a text adventure program with a REPL
@@ -14,17 +15,30 @@ from texty.io import StdIOInterface
 # - semi-predefined locations
 # - inventory
 def main():
-    io = StdIOInterface()
-    io.write_output("Welcome to Texty!")
+    io = RichInterface()
+    database.initialize_db()
+    io.write_output(
+        dedent(
+            """
+            *-------------------*
+            | Welcome to Texty! |
+            *-------------------*
+            """
+        ).strip()
+    )
+    main_menu(io)
+
+
+def main_menu(io: IOInterface):
     database.initialize_db()
     while True:
         io.write_output(
-            (
-                """Main Menu:
-1. New Game
-2. Load Game
-3. Quit"""
-            )
+            dedent(
+                """
+                1. New Game
+                2. Load Game
+                3. Quit"""
+            ).strip()
         )
         choice = io.read_input("Choose an option: ").strip()
 
