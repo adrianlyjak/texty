@@ -93,9 +93,21 @@ def stream_chat_response(prompt: str) -> Generator[str, None, None]:
         txt_gen = outlines.generate.text(model)
         yield from txt_gen.stream(txt)
     else:
-        # TODO fix me, outlines not compatible for streaming with openai
-        # this should instead make a request to the OPENAI_URI
-        pass
+        import httpx
+
+        async def fetch_stream():
+            async with httpx.AsyncClient() as client:
+                async with client.stream("POST", OPENAI_URI + "/chat/completions", json={
+                    "model": "gpt-3.5-turbo",
+                    "messages": [{"role": "user", "content": prompt}],
+                    "stream": True,
+                }) as response:
+                    async for chunk in response.aiter_text():
+                        if chunk:
+                            yield chunk
+
+        for chunk in fetch_stream():
+            yield chunk
     
 
 if __name__ == "__main__":
