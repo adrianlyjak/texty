@@ -1,5 +1,5 @@
 import outlines
-from typing import List
+from typing import List, Optional
 
 @outlines.prompt
 def rules():
@@ -31,11 +31,24 @@ def gen_game_state(description: str):
     Finally, set the scene. List scene details wrapped in <Scene> </Scene> tags.
     """
 
+
 @outlines.prompt
-def gen_introduction_system():
+def gen_introduction_system(n=3, hint: Optional[str] = None, previous: List[str] = []):
     """
-    You are a text adventure system. Your imagination reaches far and wide. You create immersive adventures with 
+    Take on the role of a text adventure game designer. You create varied immersive adventures with 
     well executed arcs.
 
-    Now, the user has just logged in. Generate a game idea! Wrap the concept in <Concept> </Concept> tags.
+    What are some game concepts? Respond as a bulleted list using dashes.
+    
+    Example Response:
+
+    - A mystery game set in a small town, where you must solve the murder of a local resident.
+    - A survival game set in a post-apocalyptic world, where you must scavenge for food and supplies and avoid the zombies that roam the streets.
+    - A puzzle game set in a labyrinth, where you must use your wits to find your way out.
+    - A role-playing game set in a fantasy world, where you must choose your own adventure and make decisions that will affect the outcome of the story.
+    {% for p in previous %}
+    - {{p}}
+    {% endfor %}
+
+    What are {{n}} more game ideas? {% if hint %}Specifically, the player is interested in a game like this: '{{hint}}'{% endif %}
     """

@@ -1,13 +1,145 @@
-import outlines.generate
-import outlines.generate.text
+import re
+from textwrap import dedent
+import uuid
+from texty import database
 from texty.gamestate import GameState
 
-import outlines
-from typing import Protocol, Any
+from typing import List, Optional, Any
 
-from texty.io import IOInterface
-from texty.models.vllm import get_chat_response
-from texty.prompts import gen_game_state
+from texty.io import IOInterface, Panel, RichInterface, list_choice
+from texty.models.vllm import get_chat_response, stream_chat_response
+from texty.prompts import gen_game_state, gen_introduction_system
+from rich.markdown import Markdown
+
+
+def run_game():
+    io = RichInterface()
+    database.initialize_db()
+    io.write_output(
+        dedent(
+            """
+            *-------------------*
+            | [bold cyan]Welcome to Texty![/bold cyan] |
+            *-------------------*
+            """
+        ).strip()
+    )
+    main_menu(io)
+
+
+def main_menu(io: IOInterface):
+    database.initialize_db()
+    choices = ["New Game", "Load Game", "Quit"]
+    while True:
+        choice = list_choice(io, "Choose an option: ", choices)
+        if choice == 1:
+            new_game(io)
+        elif choice == 2:
+            load_game(io)
+        elif choice == 3:
+            io.write_output("Thanks for playing!")
+            break
+
+
+def as_bullet(x: str) -> Optional[str]:
+    if re.match("^- ", x.strip()):
+        return re.sub("^\s*- ", "", x)
+    return None
+
+
+def fetch_options(io: IOInterface, initial=[], n=3, hint: Optional[str] = None) -> List[str]:
+    options = []
+
+    # add numbers
+    def log_options(items: List[str], panel: Panel):
+        panel.update(
+                Markdown(
+                    "\n".join(
+                        [
+                            str(i + 1 + len(initial)) + ". " + item
+                            for i, item in enumerate(items)
+                        ]
+                    ) + "\n\n"
+                )
+            )
+    with io.live_panel("Generating ideas...") as panel:
+        current = ""
+        for x in stream_chat_response(gen_introduction_system(n=n, hint=hint, previous=initial)):
+            parts = x.split("\n")
+            current += parts[0]
+            if len(parts) > 1:
+                candidates = [current] + parts[1:-1]
+                for c in candidates:
+                    bullet = as_bullet(c)
+                    if bullet:
+                        options.append(bullet)
+                current = parts[-1]
+            
+            log_options(options + ([as_bullet(current)] if as_bullet(current) else []), panel)
+        if current and as_bullet(current):
+            options.append(as_bullet(current))
+            log_options(options, panel)
+    return options
+
+def new_game(io: IOInterface):
+    options = []
+    selection = None
+    hint = None
+    while selection is None:
+        options.extend(fetch_options(io, initial=options, hint=hint))
+        hint = None
+        selection_str = io.read_input("Pick a number, or 'm' for more, or give a hint as to the kind of game you would like: ").strip()
+        if selection_str == "m":
+            continue
+        if not selection_str.isdigit():
+            hint = selection_str
+            continue
+        selection_idx = int(selection_str) - 1
+        if selection_idx < 0 or selection_idx >= len(options):
+            io.write_output("Invalid choice. Please select a valid option.")
+            continue
+
+        selection = options[selection_idx]
+    state = GameState(description=selection)
+    game_id = str(uuid.uuid4())  # Generate a new random UUID for game ID
+    game_repl = GameREPL(game_id, state, io)
+    database.save_game_state(game_id, state)
+    game_loop(game_repl)
+
+
+def load_game(io: IOInterface):
+    games = database.list_games()
+    games.sort(key=lambda x: x.updated, reverse=True)
+    if not games:
+        io.write_output("No saved games found.")
+        return
+
+    io.write_output("Saved games:")
+    for idx, game in enumerate(games, start=1):
+        gs = GameState.model_validate_json(game.state)
+        io.write_output(f"{idx}. {gs.description} (Last updated: {game.updated})")
+
+    choice = input("Enter the number of the game you want to load: ").strip()
+    if not choice.isdigit() or int(choice) < 1 or int(choice) > len(games):
+        io.write_output("Invalid choice.")
+        return
+
+    game = games[int(choice) - 1]
+    state = GameState.model_validate_json(game.state)
+
+    game_repl = GameREPL(game.id, state, io)
+    game_loop(game_repl)
+
+
+def game_loop(game_repl: "GameREPL"):
+    game_repl.initialize()
+    while True:
+        command = game_repl.io.read_input("> ").strip()
+        if command == "/quit":
+            game_repl.io.write_output("Exiting game...")
+            break
+        else:
+            game_repl.process_input(command)
 
 
 class GameREPL:
@@ -37,7 +169,6 @@ class GameREPL:
             resp = get_chat_response(prompt)
             # TODO - Parse the response and update the game state
             pass
-        
 
     def process_input(self, input: str) -> None:
         """Parses the raw user input into one of the available commands"""
@@ -52,7 +183,9 @@ class GameREPL:
         elif cmd == "/hint":
             self.show_actions(query=cmds[1] if len(cmds) > 1 else "")
         elif cmd.startswith("/"):
-            self.io.write_output(f"Unknown command '{cmd}'. Type /help for a list of commands, or otherwise type your input")
+            self.io.write_output(
+                f"Unknown command '{cmd}'. Type /help for a list of commands, or otherwise type your input"
+            )
         else:
             self.take_action(input)
 
@@ -89,7 +222,11 @@ class GameREPL:
                 )
                 location_details.append(details)
 
-        self.io.write_output("Current location and past {} locations:\n\n{}".format(n, "\n\n".join(location_details)))
+        self.io.write_output(
+            "Current location and past {} locations:\n\n{}".format(
+                n, "\n\n".join(location_details)
+            )
+        )
 
     def show_inventory(self) -> str:
         """/inventory - Command that prints information about the current inventory"""
@@ -101,7 +238,9 @@ class GameREPL:
 
     def show_actions(self, query: str) -> str:
         """/hint [query] - Command that prints a hint about the currently available actions and objectives"""
-        self.io.write_output("Hint about the currently available actions and objectives.")
+        self.io.write_output(
+            "Hint about the currently available actions and objectives."
+        )
 
     def handle_text_command(self, text: str) -> str:
         """Handles the /text command"""

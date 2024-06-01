@@ -1,3 +1,4 @@
 ipykernel
 black
 aider
+jurigged

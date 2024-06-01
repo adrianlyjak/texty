@@ -1,6 +1,10 @@
-from typing import Protocol
+import sys
+from typing import Any, Iterator, Protocol
 from typing import List
-from rich.console import Console
+from rich.console import Console, RenderableType
+from rich.live import Live
+from rich.text import Text
+
 
 
 class IOInterface(Protocol):
@@ -9,6 +13,21 @@ class IOInterface(Protocol):
 
     def write_output(self, message: str, end="\n") -> None:
         ...
+
+    def live_panel(self, initial_text: str) -> "Panel":
+        ...
+
+
+class Panel(Protocol):
+    def update(self, text: str) -> None:
+        ...
+
+    def __enter__(self) -> "Panel":
+        ...
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        ...
+    
 
 class RichInterface(IOInterface):
 
@@ -21,13 +40,28 @@ class RichInterface(IOInterface):
     def write_output(self, message: str, end="\n") -> None:
         self.console.print(message, end=end)
 
-class StdIOInterface(IOInterface):
-    def read_input(self, prompt: str) -> str:
-        return input(prompt)
+    def live_panel(self, initial_text: str) -> Panel:
+        return RichPanel(self.console, initial_text)
 
-    def write_output(self, message: str, end="\n") -> None:
-        print(message, end=end)
+class RichPanel():
+    def __init__(self, console: Console, initial_text: str) -> None:
+        self.text = Text(initial_text)
+        self.console = console
+    
+    def __enter__(self) -> "RichPanel":
+        self.live = Live(self.text, console=self.console, refresh_per_second=10)
+        self.live.__enter__()
+        return self
 
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.live.__exit__(exc_type, exc_value, traceback)
+
+
+    def update(self, text: str | RenderableType) -> None:
+        self.text = Text(text) if type(text) is str else text
+        self.live.update(self.text)
+
+    
 def list_choice(io: IOInterface, prompt: str, choices: List[str]) -> int:
     """
     Display a list of choices and prompt the user to select one.
