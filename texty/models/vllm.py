@@ -13,11 +13,11 @@ import re
 # import torch
 
 mode = "OPENAI_API"
-OPENAI_URI = "http://localhost:11434/v1"
-# OPENAI_URI = "http://localhost:8080/v1"
-OPENAI_MODEL = "llama3:70b-instruct-q4_0" 
+# OPENAI_URI = "http://localhost:11434/v1"
+OPENAI_URI = "http://localhost:8000/v1"
+# OPENAI_MODEL = "llama3:70b-instruct-q4_0" 
 OPENAI_TEMPERATURE = 1
-#OPENAI_MODEL = "./Meta-Llama-3-70B-Instruct-GPTQ-4b"
+OPENAI_MODEL = "./Meta-Llama-3-70B-Instruct-GPTQ-4b"
 
 # @lru_cache(maxsize=None)  # makes it a lazy singleton
 # def get_local_vllm(model_id="meta-llama/Meta-Llama-3-8B-Instruct") -> LLM:
