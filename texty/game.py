@@ -2,13 +2,13 @@ import re
 from textwrap import dedent
 import uuid
 from texty import database
-from texty.gamestate import GameState
+from texty.gamestate import GameRow, GameState
 
 from typing import List, Optional, Any
 
 from texty.io import IOInterface, Panel, RichInterface, list_choice
 from texty.models.vllm import get_chat_response, stream_chat_response
-from texty.prompts import gen_game_state, gen_introduction_system
+from texty.prompts import gen_world, gen_concepts
 from rich.markdown import Markdown
 
 
@@ -24,11 +24,19 @@ def run_game():
             """
         ).strip()
     )
-    main_menu(io)
+    game = database.last_game()
+    if game:
+        resume_game(io, game)    
+    else:
+        new_game(io)
+
+def resume_game(io: IOInterface, game: GameRow):
+    state = GameState.model_validate_json(game.state)
+    game_repl = GameREPL(game.id, state, io)
+    game_loop(game_repl)
 
 
 def main_menu(io: IOInterface):
-    database.initialize_db()
     choices = ["New Game", "Load Game", "Quit"]
     while True:
         choice = list_choice(io, "Choose an option: ", choices)
@@ -64,7 +72,7 @@ def fetch_options(io: IOInterface, initial=[], n=3, hint: Optional[str] = None) 
             )
     with io.live_panel("Generating ideas...") as panel:
         current = ""
-        for x in stream_chat_response(gen_introduction_system(n=n, hint=hint, previous=initial)):
+        for x in stream_chat_response(gen_concepts(n=n, hint=hint, previous=initial)):
             parts = x.split("\n")
             current += parts[0]
             if len(parts) > 1:
@@ -125,11 +133,7 @@ def load_game(io: IOInterface):
         return
 
     game = games[int(choice) - 1]
-    state = GameState.model_validate_json(game.state)
-
-    game_repl = GameREPL(game.id, state, io)
-    game_loop(game_repl)
-
+    resume_game(io, game)
 
 def game_loop(game_repl: "GameREPL"):
     game_repl.initialize()
@@ -165,10 +169,11 @@ class GameREPL:
             or self.state.scenes == []
             or self.state.objectives == []
         ):
-            prompt = gen_game_state(self.state.description)
-            resp = get_chat_response(prompt)
-            # TODO - Parse the response and update the game state
-            pass
+            with self.io.live_panel("Generating game state...") as panel:
+                prompt = gen_world(self.state.description)
+                resp = get_chat_response(prompt)
+                # TODO - Parse the response and update the game state
+                pass
 
     def process_input(self, input: str) -> None:
         """Parses the raw user input into one of the available commands"""

@@ -21,7 +21,7 @@ def rules():
 #     """
 
 @outlines.prompt
-def gen_game_state(description: str):
+def gen_world(description: str):
     """
     Generate a scenario based on the following game description: {{description}}
 
@@ -33,7 +33,7 @@ def gen_game_state(description: str):
 
 
 @outlines.prompt
-def gen_introduction_system(n=3, hint: Optional[str] = None, previous: List[str] = []):
+def gen_concepts(n=3, hint: Optional[str] = None, previous: List[str] = []):
     """
     Take on the role of a text adventure game designer. You create varied immersive adventures with 
     well executed arcs.

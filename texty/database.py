@@ -2,7 +2,7 @@
 import sqlite3
 import json
 from datetime import datetime
-from typing import List, Dict
+from typing import List, Dict, Optional
 
 from texty.gamestate import GameRow, GameState
 
@@ -51,6 +51,16 @@ def load_game_state(game_id: str) -> GameState:
         ''', (game_id,))
         row = cursor.fetchone()
         return json.loads(row[0]) if row else None
+
+def last_game() -> Optional[GameRow]:
+    """Get the last played game"""
+    with sqlite3.connect(DATABASE_FILE) as conn:
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT id, state, created, updated FROM games ORDER BY updated DESC LIMIT 1
+        ''')
+        row = cursor.fetchone()
+        return GameRow(id=row[0], state=row[1], created=row[2], updated=row[3]) if row else None
 
 def list_games() -> List[GameRow]:
     """List all game IDs along with the games description and the last updated date"""
