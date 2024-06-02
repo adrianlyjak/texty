@@ -1,4 +1,5 @@
 import logging
+import pytest
 from texty.prompts import gen_world
 from texty.models.vllm import get_chat_response
 
@@ -12,5 +13,3 @@ def test_gen_world_and_get_chat_response():
     response = get_chat_response(prompt)
     logger.info(f"Response: {response}")
 
-if __name__ == "__main__":
-    test_gen_world_and_get_chat_response()
