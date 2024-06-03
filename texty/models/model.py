@@ -13,11 +13,14 @@ import re
 # import torch
 
 mode = "OPENAI_API"
-# OPENAI_URI = "http://localhost:11434/v1"
-OPENAI_URI = "http://localhost:8000/v1"
-# OPENAI_MODEL = "llama3:70b-instruct-q4_0" 
-OPENAI_TEMPERATURE = 1
-OPENAI_MODEL = "./Meta-Llama-3-70B-Instruct-GPTQ-4b"
+OPENAI_URI = "http://localhost:11434/v1" # ollama
+OPENAI_MODEL = "llama3:70b-instruct-q4_0"
+# OPENAI_URI = "http://localhost:8000/v1" # vllm
+# OPENAI_MODEL = "./Meta-Llama-3-70B-Instruct-GPTQ-4b"
+# OPENAI_URI = "http://localhost:8080/v1" # llama.cpp
+# OPENAI_MODEL = "Meta-Llama-3-70B-Q4_K_M" 
+OPENAI_TEMPERATURE = 0.7
+
 
 # @lru_cache(maxsize=None)  # makes it a lazy singleton
 # def get_local_vllm(model_id="meta-llama/Meta-Llama-3-8B-Instruct") -> LLM:
@@ -102,33 +105,25 @@ def stream_chat_response(prompt: str) -> Generator[str, None, None]:
     else:
         import httpx
 
-        def fetch_stream():
-            with httpx.Client(timeout=httpx.Timeout(60)) as client:
-                with client.stream("POST", OPENAI_URI + "/chat/completions", json={
-                    "model": OPENAI_MODEL,
-                    "messages": [{"role": "user", "content": prompt}],
-                    "stream": True,
-                    "temperature": OPENAI_TEMPERATURE
-                }) as response:
-                    buff = ""
-                    
-                    for chunk in response.iter_text():
-                        if chunk:
-                            buff += chunk
-                            while buff.startswith("data: ") and "\n" in buff:
-                                [line, tail] = buff.split("\n", 1)
-                                buff = re.sub("^\n*", "", tail, 1)
-                                cleaned = line.replace("data: ", "")
-                                if cleaned == "[DONE]":
-                                    return
-                                data = json.loads(cleaned)
-                                delta = data["choices"][0]["delta"]
-                                if "content" in delta:
-                                    yield delta["content"]
-
-        for chunk in fetch_stream():
-            yield chunk
-    
-
-if __name__ == "__main__":
-    get_chat_response("whats the capital of paris?")
+        with httpx.Client(timeout=httpx.Timeout(60)) as client:
+            with client.stream("POST", OPENAI_URI + "/chat/completions", json={
+                "model": OPENAI_MODEL,
+                "messages": [{"role": "user", "content": prompt}],
+                "stream": True,
+                "temperature": OPENAI_TEMPERATURE
+            }) as response:
+                buff = ""
+                
+                for chunk in response.iter_text():
+                    if chunk:
+                        buff += chunk
+                        while buff.startswith("data: ") and "\n" in buff:
+                            [line, tail] = buff.split("\n", 1)
+                            buff = re.sub("^\n*", "", tail, 1)
+                            cleaned = line.replace("data: ", "")
+                            if cleaned == "[DONE]":
+                                return
+                            data = json.loads(cleaned)
+                            delta = data["choices"][0]["delta"]
+                            if "content" in delta:
+                                yield delta["content"]

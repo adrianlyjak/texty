@@ -7,7 +7,7 @@ from texty.gamestate import GameRow, GameState
 from typing import List, Optional, Any
 
 from texty.io import IOInterface, Panel, RichInterface, list_choice
-from texty.models.vllm import get_chat_response, stream_chat_response
+from texty.models.model import get_chat_response, stream_chat_response
 from texty.prompts import gen_world, gen_concepts
 from rich.markdown import Markdown
 

@@ -7,5 +7,5 @@ python -m vllm.entrypoints.openai.api_server \
   --dtype auto \
   --tensor-parallel-size 2 \
   --enforce-eager \
-  --max-model-len 2048 \
+  --max-model-len 3072 \
   --quantization gptq
