@@ -2,8 +2,9 @@ import json
 from typing import Any, List, Optional
 import argparse
 from os.path import dirname
-from texty.prompts import gen_intro_zone, gen_world, gen_world_objective
-from texty.models.model import get_chat_response, stream_chat_response
+from texty.prompts import GenZone, gen_intro_zone, gen_world, gen_world_objective
+from texty.models.model import get_chat_response, schema_response, stream_chat_response
+
 
 class Eval:
 
@@ -12,7 +13,7 @@ class Eval:
             getattr(self, test)()
         else:
             # Accessing the class's __dict__ to find methods starting with "test_"
-            methods = [m for m in dir(self) if m.startswith('test_')]
+            methods = [m for m in dir(self) if m.startswith("test_")]
             for method_name in methods:
 
                 method = getattr(self, method_name)
@@ -33,13 +34,12 @@ class Eval:
     def test_gen_world_puzzle(self):
         description = "A puzzle game set in a labyrinth, where you must use your wits to find your way out."
         self._print_chat(gen_world(description))
-    
+
     future_detective_summary = "A detective game set in a futuristic city, where you must solve a series of murders."
 
     def test_gen_world_future_detective(self):
         description = self.future_detective_summary
         self._print_chat(gen_world(description))
-
 
     def test_objectives_future_detective(self):
         results = self._load_jsonl_data("/tests/future_detective/world.jsonl")
@@ -49,12 +49,12 @@ class Eval:
         world = self._load_jsonl_data("/tests/future_detective/world.jsonl")
         objectives = self._load_jsonl_data("/tests/future_detective/objectives.jsonl")
         intro = gen_intro_zone(self.future_detective_summary, world, objectives)
-        self._print_chat(intro)
+        print(intro)
+        print(schema_response(intro, GenZone))
+
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-                    prog='Eval',
-                    description='Runs the evals')
-    parser.add_argument('-t', '--test', type=str)
+    parser = argparse.ArgumentParser(prog="Eval", description="Runs the evals")
+    parser.add_argument("-t", "--test", type=str)
     args = parser.parse_args()
     Eval().run(args.test)
