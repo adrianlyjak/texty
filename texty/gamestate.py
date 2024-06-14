@@ -13,16 +13,22 @@ class GameRow(BaseModel):
     created: str
     updated: str
 
+
 class GameState(BaseModel):
     """
     All the game state
     """
+
     # The initial description of the game
     description: str
     # model defined game objectives
     objectives: List[str] = []
     # model defined world building
     environment: List[str] = []
+    # objectives that have become active to the game
+    current_objectives: List[str] = []
+    # environment details that have become active
+    current_environment: List[str] = []
     # model defined "rooms"
     scenes: List["Scene"] = []
     # past rooms visited, from first to last
@@ -31,6 +37,7 @@ class GameState(BaseModel):
     action_history: List[str] = []
     # Øitems in the inventory
     inventory: List[str] = []
+
 
 class Scene(BaseModel):
     id: str

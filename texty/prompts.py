@@ -6,6 +6,8 @@ from typing import List, Literal, Optional
 
 from pydantic import BaseModel, Field
 
+from texty.gamestate import GameState
+
 
 PROMPT_ROLE_GAME_DESIGNER = "Take on the role of a text adventure game designer. You create varied immersive adventures with well executed arcs. You're sharp witted and great at coming up with cool ideas on the fly."
 
@@ -83,13 +85,88 @@ def gen_world_objective(
 
 
 def gen_intro_zone(
-    description: str, environment: List[str], objectives: List[str]
+    gamestate: GameState,
 ) -> str:
-    return _gen_intro_zone(
-        description,
-        random.sample(environment, min(len(environment), 20)),
-        random.sample(objectives, min(len(objectives), 10)),
+
+    return _gen_game_prompt(
+        _activate_game_states_for_zone(gamestate),
+        gamestate,
     )
+
+
+ZONE_FORMAT = """
+```yaml
+    title: The name of the zone, will be displayed to the player
+    id: unique-zone-slug-based-on-title-in-kebab-case
+    # optionally reference or create world details related to this zone
+    world_details:
+      - 5. A world detail selected from the list of potential world details that relates to this zone
+      - New: a new world detail 
+    description: A detailed description of the zone. This will be displayed to the player as they enter the zone
+    # optionally add 
+    objectives:
+      - 7. An object selected from the list of potential objectives that relates to this zone
+      - New: a new objective. Only add if it's needed! Objectives should be create sparingly to keep the game focused.
+    hidden_details:
+      - list of details and objects
+      - through questioning the game, the player may discover and use these
+      - they should relate to puzzles to solve for the objectives
+    # not required
+    characters:
+      - name: The name of the character
+        description: A description of the character
+    # There should always be at least one connected zone, but may be more
+    connected_zones:
+      - title: The name of the connected zone
+        id: unique-connected-zone-slug-based-on-title-in-kebab-case
+        connected_by: The way to get to the connected zone
+    ```
+"""
+
+
+@outlines.prompt
+def _activate_game_states_for_zone(gamestate: GameState):
+    """
+    ## Zone
+
+    Currently you are preparing to plan out the initial zones in your game.
+
+    First of all, select a subset of environment details to "activate" and make current. You will design your initial set of zones around these details.
+
+    Keep in mind that this plan will set the direction and structure of the game, so it must be cohesive.
+
+    Respond in the following yaml format:
+
+    ```yaml
+    thought: a thoughtful review of the available environment details, drawing associations between those that tell a cohesive story
+    selections:
+      # This must contain at least one environment detail and one objective, but may be up to 10 combined. 4 is usually enough
+      - type: environment
+        index: 2 # the exact number of the environment detail to activate, selected from the list above
+        name: the exact text of the selected environment detail
+      - type: objective
+        index: 3 # the exact number of the objective to activate, selected from the list above
+        name: the exact text of the selected objective
+    ```
+    """
+
+
+@outlines.prompt
+def _intro_zone(
+    gamestate: GameState,
+    zone_format=ZONE_FORMAT,
+):
+    """
+    ## Zone
+
+    Currently, you are working on creating a map of Zones. A Zone is a space within the game that the player occupies. A player always is in exactly one zone, and can only interact with elements within that space. They may move between interconnected zones.
+
+    Now, respond with a description for the first zone. Respond with the following yaml format:
+
+    {{zone_format}}
+
+    This is the player's first introduction to the story, so make it compelling and hook their interest!
+    """
 
 
 @dataclasses.dataclass
@@ -154,63 +231,57 @@ class NoteRemove(BaseModel):
 
 
 @outlines.prompt
-def _gen_intro_zone(
-    description: str,
-    potential_environment: List[str],
-    potential_objectives: List[str],
-    fact_environment: List[str] = [],
-    fact_objectives: List[str] = [],
-    connected_zone: Optional[ConnectedZone] = None,
+def _gen_game_prompt(
+    prompt: str,
+    game: GameState,
     role=PROMPT_ROLE_GAME_DESIGNER,
     mechanics=PROMPT_MECHANICS,
-    zone_format=json.dumps(GenZone.model_json_schema(), indent=2),
 ):
     """
     {{role}}
 
     {{mechanics}}
 
-    This is your current project: {{description}}
+    This is your current project: {{game.description}}
 
-    # Notes
+    # Game Notes
 
     ## Game Environment
 
-    This is a list of ideas about places, people, rules, social concerns, events, etc.
-    {% if fact_environment %}
+    Lists ideas about places, people, rules, social concerns, events, etc.
+    {% if game.current_environment %}
 
-    Current Environment: These are environment details that are already part of the game story. You can include them in this zone if it makes sense. Prefer them over potential environment details.
-    {% for e in fact_environment %}
+    Active environment details:
+    {% for e in game.current_environment %}
     {{loop.index}}. {{e}}
     {% endfor %}
     {% endif %}
 
-    Potential Environment: These are some potential environment details. You can sample from them if you see fit, however they are not yet part of the story.
-    {% for e in potential_environment %}
+    Environment ideas - not yet part of the story. Might be useful to sample from.
+    {% for e in game.environment %}
     {{loop.index}}. {{e}}
     {% endfor %}
 
     ## Game Objectives
 
-    This is a list of game objects, both large and small. Includes both ideas for the main singular objective, and ideas for small objectives and puzzles within potential spaces of the environment.
-    {% if fact_objectives %}
+    Lists game objectives, large and small. Both ideas for the main singular objective, and for small objectives and puzzles within potential spaces of the environment.
+    {% if game.current_objectives %}
 
-    Current objectives: these are some objectives that are already part of the game story. You can include them in this scene. Prefer them over potential objective details.
-    {% for o in fact_objectives %}
+    Active objectives:
+    {% for o in game.current_objectives %}
     {{loop.index}}. {{o}}
     {% endfor %}
     {% endif %}
 
-    Potential objectives: These are some potential objectives. You can sample from them if you see fit, however they are not yet part of the story.
-    {% for o in potential_objectives %}
+    Objectives ideas - not yet part of the story. Might be useful to sample from.
+    {% for o in game.objectives %}
     {{loop.index}}. {{o}}
     {% endfor %}
 
-    ## Zone
+    {{prompt}}"""
 
-    Currently, you are working on creating a new Zone. A Zone is a space within the game that the player occupies. The player can only interact with elements within that space.
 
-    Respond according to the following format:
+garbage = """Respond according to the following format:
 
     {{zone_format}}
 

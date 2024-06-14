@@ -6,31 +6,37 @@ from rich.live import Live
 from rich.text import Text
 
 
-
 class IOInterface(Protocol):
-    def read_input(self, prompt: str) -> str:
-        ...
+    def read_input(self, prompt: str) -> str: ...
 
-    def write_output(self, message: str, end="\n") -> None:
-        ...
+    def write_output(self, message: str, end="\n") -> None: ...
 
-    def live_panel(self, initial_text: str) -> "Panel":
-        ...
+    def live_panel(self, initial_text: str) -> "Panel": ...
 
 
 class Panel(Protocol):
-    def update(self, text: str) -> None:
-        ...
+    def update(self, text: str) -> None: ...
 
-    def __enter__(self) -> "Panel":
-        ...
+    def __enter__(self) -> "Panel": ...
 
-    def __exit__(self, exc_type, exc_value, traceback):
-        ...
-    
+    def __exit__(self, exc_type, exc_value, traceback): ...
+
+
+class HtmlInterface(IOInterface):
+    def read_input(self, prompt: str) -> str:
+        # return input(prompt)
+        pass
+
+    def write_output(self, message: str, end="\n") -> None:
+        # sys.stdout.write(message)
+        # sys.stdout.write(end)
+        pass
+
+    def live_panel(self, initial_text: str) -> Panel:
+        pass
+
 
 class RichInterface(IOInterface):
-
 
     console = Console()
 
@@ -43,11 +49,12 @@ class RichInterface(IOInterface):
     def live_panel(self, initial_text: str) -> Panel:
         return RichPanel(self.console, initial_text)
 
-class RichPanel():
+
+class RichPanel:
     def __init__(self, console: Console, initial_text: str) -> None:
         self.text = Text(initial_text)
         self.console = console
-    
+
     def __enter__(self) -> "RichPanel":
         self.live = Live(self.text, console=self.console, refresh_per_second=10)
         self.live.__enter__()
@@ -56,12 +63,11 @@ class RichPanel():
     def __exit__(self, exc_type, exc_value, traceback):
         self.live.__exit__(exc_type, exc_value, traceback)
 
-
     def update(self, text: str | RenderableType) -> None:
         self.text = Text(text) if type(text) is str else text
         self.live.update(self.text)
 
-    
+
 def list_choice(io: IOInterface, prompt: str, choices: List[str]) -> int:
     """
     Display a list of choices and prompt the user to select one.

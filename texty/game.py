@@ -8,7 +8,8 @@ from typing import List, Optional, Any
 
 from texty.io import IOInterface, Panel, RichInterface, list_choice
 from texty.models.model import get_chat_response, stream_chat_response
-from texty.prompts import gen_world, gen_concepts
+from texty.parsing import parse_bulleted_list
+from texty.prompts import gen_world, gen_concepts, gen_world_objective
 from rich.markdown import Markdown
 
 
@@ -26,9 +27,10 @@ def run_game():
     )
     game = database.last_game()
     if game:
-        resume_game(io, game)    
+        resume_game(io, game)
     else:
         new_game(io)
+
 
 def resume_game(io: IOInterface, game: GameRow):
     state = GameState.model_validate_json(game.state)
@@ -55,21 +57,25 @@ def as_bullet(x: str) -> Optional[str]:
     return None
 
 
-def fetch_options(io: IOInterface, initial=[], n=3, hint: Optional[str] = None) -> List[str]:
+def fetch_options(
+    io: IOInterface, initial=[], n=3, hint: Optional[str] = None
+) -> List[str]:
     options = []
 
     # add numbers
     def log_options(items: List[str], panel: Panel):
         panel.update(
-                Markdown(
-                    "\n".join(
-                        [
-                            str(i + 1 + len(initial)) + ". " + item
-                            for i, item in enumerate(items)
-                        ]
-                    ) + "\n\n"
+            Markdown(
+                "\n".join(
+                    [
+                        str(i + 1 + len(initial)) + ". " + item
+                        for i, item in enumerate(items)
+                    ]
                 )
+                + "\n\n"
             )
+        )
+
     with io.live_panel("Generating ideas...") as panel:
         current = ""
         for x in stream_chat_response(gen_concepts(n=n, hint=hint, previous=initial)):
@@ -82,12 +88,15 @@ def fetch_options(io: IOInterface, initial=[], n=3, hint: Optional[str] = None) 
                     if bullet:
                         options.append(bullet)
                 current = parts[-1]
-            
-            log_options(options + ([as_bullet(current)] if as_bullet(current) else []), panel)
+
+            log_options(
+                options + ([as_bullet(current)] if as_bullet(current) else []), panel
+            )
         if current and as_bullet(current):
             options.append(as_bullet(current))
             log_options(options, panel)
     return options
+
 
 def new_game(io: IOInterface):
     options = []
@@ -96,7 +105,9 @@ def new_game(io: IOInterface):
     while selection is None:
         options.extend(fetch_options(io, initial=options, hint=hint))
         hint = None
-        selection_str = io.read_input("Pick a number, or 'm' for more, or give a hint as to the kind of game you would like: ").strip()
+        selection_str = io.read_input(
+            "Pick a number, or 'm' for more, or give a hint as to the kind of game you would like: "
+        ).strip()
         if selection_str == "m":
             continue
         if not selection_str.isdigit():
@@ -135,6 +146,7 @@ def load_game(io: IOInterface):
     game = games[int(choice) - 1]
     resume_game(io, game)
 
+
 def game_loop(game_repl: "GameREPL"):
     game_repl.initialize()
     while True:
@@ -164,16 +176,40 @@ class GameREPL:
         """
         Initializes the world from the LLM, if not already initialized
         """
-        if (
-            self.state.environment == []
-            or self.state.scenes == []
-            or self.state.objectives == []
-        ):
+        if self.state.environment == []:
+
             with self.io.live_panel("Generating game state...") as panel:
                 prompt = gen_world(self.state.description)
-                resp = get_chat_response(prompt)
-                # TODO - Parse the response and update the game state
-                pass
+                resp = stream_chat_response(prompt)
+                details = []
+                result = ""
+                for x in resp:
+                    result += x
+                    details = parse_bulleted_list(result)
+                    if len(details) > 0:
+                        panel.update("Generating world detail... " + details[-1])
+                details = parse_bulleted_list(result)
+                self.state.environment.extend(details)
+                database.save_game_state(self.game_id, self.state)
+
+        if self.state.objectives == []:
+            with self.io.live_panel("Generating objectives...") as panel:
+                prompt = gen_world_objective(
+                    self.state.description, world=self.state.environment
+                )
+                resp = stream_chat_response(prompt)
+                details = []
+                result = ""
+                for x in resp:
+                    result += x
+                    details = parse_bulleted_list(result)
+                    if len(details) > 0:
+                        panel.update("Generating possible objective... " + details[-1])
+                details = parse_bulleted_list(result)
+                self.state.objectives.extend(details)
+                database.save_game_state(self.game_id, self.state)
+
+        raise NotImplementedError()
 
     def process_input(self, input: str) -> None:
         """Parses the raw user input into one of the available commands"""
