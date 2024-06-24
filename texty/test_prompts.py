@@ -2,7 +2,7 @@ import json
 from typing import Any, List, Optional
 import argparse
 from os.path import dirname
-from texty.prompts import GenZone, gen_intro_zone, gen_world, gen_world_objective
+from texty.prompts import GenZone, activate_game_state, gen_world, gen_world_objective
 from texty.models.model import get_chat_response, schema_response, stream_chat_response
 
 
@@ -48,7 +48,7 @@ class Eval:
     def test_gen_intro_scene_future_detective(self):
         world = self._load_jsonl_data("/tests/future_detective/world.jsonl")
         objectives = self._load_jsonl_data("/tests/future_detective/objectives.jsonl")
-        intro = gen_intro_zone(self.future_detective_summary, world, objectives)
+        intro = activate_game_state(self.future_detective_summary, world, objectives)
         print(intro)
         print(schema_response(intro, GenZone))
 

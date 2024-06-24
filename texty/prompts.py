@@ -84,7 +84,7 @@ def gen_world_objective(
     """
 
 
-def gen_intro_zone(
+def activate_game_state(
     gamestate: GameState,
 ) -> str:
 
@@ -127,13 +127,9 @@ ZONE_FORMAT = """
 @outlines.prompt
 def _activate_game_states_for_zone(gamestate: GameState):
     """
-    ## Zone
+    ## Narrative
 
-    Currently you are preparing to plan out the initial zones in your game.
-
-    First of all, select a subset of environment details to "activate" and make current. You will design your initial set of zones around these details.
-
-    Keep in mind that this plan will set the direction and structure of the game, so it must be cohesive.
+    You are reviewing your general notes and building a detailed narrative for your game story. You'll do this by select a subset of your environment and objectives, and stitch them together to tell a cohesive narrative.
 
     Respond in the following yaml format:
 
@@ -147,8 +143,37 @@ def _activate_game_states_for_zone(gamestate: GameState):
       - type: objective
         index: 3 # the exact number of the objective to activate, selected from the list above
         name: the exact text of the selected objective
+      - type: environment
+        new: true
+        name: A new environment detail required for this narrative
+    description: |-
+      A narrative description of the events, characters, zones, and puzzles required for the player to complete the narrative. This is your internal plan for this narrative, and you'll use it periodically during gameplay to judge the players completion. It should contain intriguing details, and interesting puzzles or research to solve.
     ```
+
+    You must respond in yaml with only the specified fields. Your response will be read by a program that parses the text inside of the backticks, and all other text will be ignored.
     """
+
+    # characters:
+    #   - name: The name of the character
+    #     description: A description of the character involved in this narrative
+    # zones:
+    #   - title: The name of the zone
+    #     id: the-name-of-the-zone
+    #     description: A detailed description of the zone
+    #     connected_zones:
+    #       - title: The name of the connected zone
+    #         id: connected-zone-slug
+    #         connected_by: The way to get to the connected zone
+    # puzzles:
+    #   - title: The name of the puzzle
+    #     description: A detailed description of the puzzle
+    #     actors:
+    #       - type: item
+    #         description: how does the item relate to the puzzle
+    #         zone: the-name-of-the-zone
+    #       - type: character
+    #         description: how does the character relate to the puzzle
+    #         zone: another-zone
 
 
 @outlines.prompt
@@ -203,31 +228,6 @@ class GenConnectedZone(BaseModel):
 class ZonePointOfInterest(BaseModel):
     type: str
     description: str
-
-
-class NoteAdd(BaseModel):
-    content: str = Field(description="The content of the note")
-    type: Literal[
-        "current environment",
-        "current objective",
-        "potential environment",
-        "potential objective",
-    ] = Field(description="The type of note to add")
-
-
-class NoteRemove(BaseModel):
-    reason: Optional[str] = Field(
-        description="Optional reason you're removing the note, for clarification"
-    )
-    index: int = Field(
-        description="The index of the environment or objective item to remove"
-    )
-    type: Literal[
-        "current environment",
-        "current objective",
-        "potential environment",
-        "potential objective",
-    ] = Field(description="The type of item to remove")
 
 
 @outlines.prompt
