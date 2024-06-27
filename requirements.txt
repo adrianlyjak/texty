@@ -1,6 +1,0 @@
-outlines==0.0.41
-pydantic>=2.7.1
-pydantic-settings>=2.2.1
-vllm>=0.3.0
-rich>=13.7.1
-fastlite

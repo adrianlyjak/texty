@@ -1,294 +1,348 @@
-import re
-from textwrap import dedent
+from typing import Iterator, List, Literal, Optional, Set, Tuple
 import uuid
-from texty import database
-from texty.gamestate import GameRow, GameState
+from pydantic import BaseModel, Field, TypeAdapter
 
-from typing import List, Optional, Any
+from texty.gametypes import Eventuality, LogItem, ProgressLog, TimeNode
+from texty import database, seeds
+from texty.models.model import get_client
+from texty.prompts import (
+    Intent,
+    IntentDetection,
+    dump_events,
+    dump_time_node,
+    prompt_detect_intent,
+    prompt_inspect_time_node,
+    prompt_progress_eventuality,
+    prompt_reject_input,
+    prompt_run_simulation,
+    prompt_summarize_time_node,
+)
 
-from texty.io import IOInterface, Panel, RichInterface, list_choice
-from texty.models.model import get_chat_response, stream_chat_response
-from texty.parsing import parse_bulleted_list
-from texty.prompts import gen_world, gen_concepts, gen_world_objective
-from rich.markdown import Markdown
+import logging
+
+logger = logging.getLogger(__name__)
 
 
-def run_game():
-    io = RichInterface()
-    database.initialize_db()
-    io.write_output(
-        dedent(
-            """
-            *-------------------*
-            | [bold cyan]Welcome to Texty![/bold cyan] |
-            *-------------------*
-            """
-        ).strip()
-    )
-    game = database.last_game()
-    if game:
-        resume_game(io, game)
+class MissingException(Exception):
+    pass
+
+
+class Game:
+    node: Optional[TimeNode] = None
+    scenario_id: str
+
+    def __init__(self, scenario_id: str):
+        self.scenario_id = scenario_id
+
+    def start_if_not_started(
+        self, seed: TimeNode = seeds.zantar
+    ) -> Iterator["AdvanceTimeProgress"]:
+        """returns true if the game was started, false if it was already running"""
+        self.node = database.get_active_node(scenario_id=self.scenario_id)
+        if not self.node:
+            node = seed.model_copy(update={"id": self.scenario_id})
+            for event in advance_time(
+                "(the player has entered. Set the scene for them, imagine a starting scene, and introduce the character and the story)",
+                node,
+                is_initialization=True,
+            ):
+                if type(event) == StatusUpdate and event.updated_time_node:
+                    node = event.updated_time_node
+                yield event
+            self.node = node
+            database.insert_time_node(self.node)
+
+    def step(
+        self,
+        player_action: str,
+    ) -> Iterator["AdvanceTimeProgress"]:
+        assert self.node is not None
+        updated = self.node
+        for event in advance_time(player_action, self.node):
+            if type(event) == StatusUpdate and event.updated_time_node:
+                updated = event.updated_time_node
+            yield event
+        database.insert_time_node(updated)
+
+    def undo(self) -> bool:
+        """Returns true if the undo was successful, false if it was not possible"""
+        previous = database.get_node(id=self.node.previous[len(self.node.previous) - 1])
+        if not previous:
+            return False
+        else:
+            self.node = previous
+            database.set_active_node(scenario_id=self.scenario_id, node_id=self.node.id)
+            return True
+
+
+class StatusUpdate(BaseModel):
+    status: Literal[
+        "loading-intent",
+        "loaded-intent",
+        "evaluating-eventuality",
+        "evaluated-eventuality",
+        "processing-game-response",
+        "summarizing-time-node",
+        "summarized-time-node",
+        "done",
+    ]
+    updated_time_node: Optional[TimeNode] = None
+    debug: Optional[str] = None
+
+
+class TextResponse(BaseModel):
+    full_text: str
+    delta: str
+
+
+AdvanceTimeProgress = StatusUpdate | TextResponse
+
+
+def advance_time(
+    player_action: str, time_node: TimeNode, is_initialization: bool = False
+) -> Iterator[AdvanceTimeProgress]:
+    """
+    An iteration of the game loop
+    """
+    original = time_node
+    time_node = time_node.model_copy(deep=True)
+    time_node.id = str(uuid.uuid4())
+    time_node.previous = original.previous + [original.id]
+
+    detected_intent: Optional[IntentDetection] = None
+    if not is_initialization:
+        yield StatusUpdate(status="loading-intent")
+        detected_intent = detect_intent(player_action, time_node)
+        yield StatusUpdate(
+            status="loaded-intent",
+            debug=f"{detected_intent.intent}: {detected_intent.thought}",
+        )
+
+    intent: Intent = detected_intent.intent if detected_intent else "act"
+    if intent == "act":
+        time_node.timestep = time_node.timestep + 1
+    timestep = time_node.timestep
+
+    events = [
+        LogItem(type=intent, role="player", text=player_action, timestep=timestep)
+    ]
+    eventuality_events = []
+    if intent == "act":
+        eventualities = []
+        if not is_initialization:
+            yield StatusUpdate(status="evaluating-eventuality")
+            time_node, eventualities = progress_eventualities(time_node, events)
+            debug_update = "\n".join(
+                [f"{updated.id}: {log.text}" for log, updated in eventualities]
+            )
+            yield StatusUpdate(
+                status="evaluated-eventuality",
+                debug=debug_update,
+                updated_time_node=time_node,
+            )
+        time_node, eventualities = (
+            (time_node, [])
+            if is_initialization
+            else progress_eventualities(time_node, events)
+        )
+
+        for log, eventuality in eventualities:
+            eventuality_events.append(
+                LogItem(
+                    role="game",
+                    type="eventuality-progress",
+                    text=f"{eventuality.id}: {log.text}",
+                    timestep=timestep,
+                )
+            )
+        yield StatusUpdate(status="processing-game-response")
+        response = ""
+        for update in run_simulation(time_node, events + eventuality_events):
+            response += update
+            yield TextResponse(full_text=response, delta=update)
+        events.append(
+            LogItem(role="game", type="game-response", text=response, timestep=timestep)
+        )
+
+    elif intent == "inspect":
+        yield StatusUpdate(status="processing-game-response")
+        response = ""
+        for update in inspect_time_node(player_action, time_node):
+            response += update
+            yield TextResponse(full_text=response, delta=update)
+        events.append(
+            LogItem(role="game", type="game-response", text=response, timestep=timestep)
+        )
     else:
-        new_game(io)
-
-
-def resume_game(io: IOInterface, game: GameRow):
-    state = GameState.model_validate_json(game.state)
-    game_repl = GameREPL(game.id, state, io)
-    game_loop(game_repl)
-
-
-def main_menu(io: IOInterface):
-    choices = ["New Game", "Load Game", "Quit"]
-    while True:
-        choice = list_choice(io, "Choose an option: ", choices)
-        if choice == 1:
-            new_game(io)
-        elif choice == 2:
-            load_game(io)
-        elif choice == 3:
-            io.write_output("Thanks for playing!")
-            break
-
-
-def as_bullet(x: str) -> Optional[str]:
-    if re.match("^- ", x.strip()):
-        return re.sub("^\s*- ", "", x)
-    return None
-
-
-def fetch_options(
-    io: IOInterface, initial=[], n=3, hint: Optional[str] = None
-) -> List[str]:
-    options = []
-
-    # add numbers
-    def log_options(items: List[str], panel: Panel):
-        panel.update(
-            Markdown(
-                "\n".join(
-                    [
-                        str(i + 1 + len(initial)) + ". " + item
-                        for i, item in enumerate(items)
-                    ]
-                )
-                + "\n\n"
-            )
+        yield StatusUpdate(status="processing-game-response")
+        response = ""
+        for update in reject_input(player_action, time_node):
+            response += update
+            yield TextResponse(full_text=response, delta=update)
+        events.append(
+            LogItem(role="game", type="game-response", text=response, timestep=timestep)
         )
 
-    with io.live_panel("Generating ideas...") as panel:
-        current = ""
-        for x in stream_chat_response(gen_concepts(n=n, hint=hint, previous=initial)):
-            parts = x.split("\n")
-            current += parts[0]
-            if len(parts) > 1:
-                candidates = [current] + parts[1:-1]
-                for c in candidates:
-                    bullet = as_bullet(c)
-                    if bullet:
-                        options.append(bullet)
-                current = parts[-1]
+    yield StatusUpdate(status="summarizing-time-node")
+    time_node = summarize_time_node(time_node, events + eventuality_events)
 
-            log_options(
-                options + ([as_bullet(current)] if as_bullet(current) else []), panel
-            )
-        if current and as_bullet(current):
-            options.append(as_bullet(current))
-            log_options(options, panel)
-    return options
+    yield StatusUpdate(status="summarized-time-node", updated_time_node=time_node)
+    # ignore the seed event, just useful for communicating context for the first iteration
+    time_node.event_log = time_node.event_log + (
+        events[1:] if is_initialization else events
+    )
+    yield StatusUpdate(status="done", updated_time_node=time_node)
+    return time_node
 
 
-def new_game(io: IOInterface):
-    options = []
-    selection = None
-    hint = None
-    while selection is None:
-        options.extend(fetch_options(io, initial=options, hint=hint))
-        hint = None
-        selection_str = io.read_input(
-            "Pick a number, or 'm' for more, or give a hint as to the kind of game you would like: "
-        ).strip()
-        if selection_str == "m":
-            continue
-        if not selection_str.isdigit():
-            hint = selection_str
-            continue
-        selection_idx = int(selection_str) - 1
-        if selection_idx < 0 or selection_idx >= len(options):
-            io.write_output("Invalid choice. Please select a valid option.")
-            continue
-
-        selection = options[selection_idx]
-    state = GameState(description=selection)
-    game_id = str(uuid.uuid4())  # Generate a new random UUID for game ID
-    game_repl = GameREPL(game_id, state, io)
-    database.save_game_state(game_id, state)
-    game_loop(game_repl)
+##################################################
+### LLM powered state transformation functions ###
+##################################################
 
 
-def load_game(io: IOInterface):
-    games = database.list_games()
-    games.sort(key=lambda x: x.updated, reverse=True)
-    if not games:
-        io.write_output("No saved games found.")
-        return
-
-    io.write_output("Saved games:")
-    for idx, game in enumerate(games, start=1):
-        gs = GameState.model_validate_json(game.state)
-        io.write_output(f"{idx}. {gs.description} (Last updated: {game.updated})")
-
-    choice = input("Enter the number of the game you want to load: ").strip()
-    if not choice.isdigit() or int(choice) < 1 or int(choice) > len(games):
-        io.write_output("Invalid choice.")
-        return
-
-    game = games[int(choice) - 1]
-    resume_game(io, game)
-
-
-def game_loop(game_repl: "GameREPL"):
-    game_repl.initialize()
-    while True:
-        command = game_repl.io.read_input("> ").strip()
-        if command == "/quit":
-            game_repl.io.write_output("Exiting game...")
-            break
-        else:
-            game_repl.process_input(command)
-
-
-class GameREPL:
+def detect_intent(player_action: str, time_node: TimeNode) -> "IntentDetection":
     """
-    Once a game is loaded, interface for controlling the game
+    Given a player response, detect whether its a executable action or an exploratory request.
+    If its an exploratory request, fill out the area/world details, and re-request the user for action
+    """
+    # TODO: consider allowing introspection as part of inspect (or its own intent?). Consider whether dialog should be its own intent.
+
+    return get_client("large").json(
+        prompt_detect_intent(player_action, dump_time_node(time_node)), IntentDetection
+    )
+
+
+def inspect_time_node(input: str, time_node: TimeNode) -> Iterator[str]:
+    """
+    A player inspects the current state of the game
     """
 
-    state: GameState
-    game_id: str
-    io: IOInterface
+    result = get_client("large").stream(
+        prompt_inspect_time_node(
+            input,
+            dump_time_node(time_node),
+            dump_events(time_node),
+        )
+    )
+    return result
 
-    def __init__(self, game_id: str, state: GameState, io: IOInterface):
-        self.io = io
-        self.state = state
-        self.game_id = game_id
 
-    def initialize(self):
-        """
-        Initializes the world from the LLM, if not already initialized
-        """
-        if self.state.environment == []:
+def reject_input(input: str, time_node: TimeNode) -> Iterator[str]:
+    """
+    The player has entered an input that is not appropriate for the current context.
+    """
+    result = get_client("large").stream(
+        prompt_reject_input(input, dump_time_node(time_node), dump_events(time_node))
+    )
+    return result
 
-            with self.io.live_panel("Generating game state...") as panel:
-                prompt = gen_world(self.state.description)
-                resp = stream_chat_response(prompt)
-                details = []
-                result = ""
-                for x in resp:
-                    result += x
-                    details = parse_bulleted_list(result)
-                    if len(details) > 0:
-                        panel.update("Generating world detail... " + details[-1])
-                details = parse_bulleted_list(result)
-                self.state.environment.extend(details)
-                database.save_game_state(self.game_id, self.state)
 
-        if self.state.objectives == []:
-            with self.io.live_panel("Generating objectives...") as panel:
-                prompt = gen_world_objective(
-                    self.state.description, world=self.state.environment
+def progress_eventualities(
+    time_node: TimeNode, events: List[LogItem]
+) -> Tuple[TimeNode, List[Tuple[ProgressLog, Eventuality]]]:
+    """
+    Trigger eventuality events based on the player's action
+    """
+    local_events: List[ProgressLog] = []
+    to_remove = []
+    update = time_node.model_copy(deep=True)
+
+    excluded = [e for e in update.eventualities if not e.is_complete]
+    story_json = dump_time_node(update.model_copy(update={"eventualities": excluded}))
+    prompt = prompt_progress_eventuality(
+        story_json,
+        dump_events(time_node, events + local_events),
+    )
+    triggers: EventualityTriggers = get_client("large").json(
+        prompt, EventualityTriggers
+    )
+    for trigger in triggers.triggered:
+        eventuality = [x for x in excluded if x.id == trigger.id]
+        eventuality = eventuality[0] if len(eventuality) else None
+        if eventuality:
+            eventuality.is_complete = trigger.completed or trigger.delete
+            if trigger.delete:
+                to_remove.append(eventuality.id)
+            log = ProgressLog(
+                timestep=time_node.timestep,
+                text=(
+                    "Completed: "
+                    if trigger.completed
+                    else "Deleted: " if trigger.delete else ""
                 )
-                resp = stream_chat_response(prompt)
-                details = []
-                result = ""
-                for x in resp:
-                    result += x
-                    details = parse_bulleted_list(result)
-                    if len(details) > 0:
-                        panel.update("Generating possible objective... " + details[-1])
-                details = parse_bulleted_list(result)
-                self.state.objectives.extend(details)
-                database.save_game_state(self.game_id, self.state)
-
-        raise NotImplementedError()
-
-    def process_input(self, input: str) -> None:
-        """Parses the raw user input into one of the available commands"""
-        cmds = input.strip().split(" ", 2)
-        cmd = cmds[0]
-        if cmd == "/help":
-            self.io.write_output(self.show_help())
-        elif cmd == "/location":
-            self.show_location(n=int(cmds[1]) if len(cmds) > 1 else 3)
-        elif cmd == "/inventory":
-            self.show_inventory()
-        elif cmd == "/hint":
-            self.show_actions(query=cmds[1] if len(cmds) > 1 else "")
-        elif cmd.startswith("/"):
-            self.io.write_output(
-                f"Unknown command '{cmd}'. Type /help for a list of commands, or otherwise type your input"
+                + trigger.progress_log,
             )
-        else:
-            self.take_action(input)
+            eventuality.progress_log = eventuality.progress_log + [log]
+            local_events.append((log, eventuality))
+    if to_remove:
+        update.eventualities = [
+            e for e in update.eventualities if e.id not in to_remove
+        ]
 
-    def show_help(self) -> str:
-        """/help - Command that prints a list of available commands"""
-        self.io.write_output(
-            "/help - Command that prints a list of available commands\n"
-            "/location [n] - Command that prints information about the current location, and the past n locations\n"
-            "/inventory - Command that prints information about the current inventory\n"
-            "/hint [query] - Command that prints a hint about the currently available actions and objectives\n"
-            "/text [message] - Command that sends a message to the LLM and gets a response\n"
-            "/quit - Command that exits the game\n"
-        )
+    # additions = EventualityList.validate_json(
+    #     prompt_add_eventuality(update, events + local_events)
+    # )
+    # if additions is not None:
+    #     update.eventualities = update.eventualities + additions
 
-    def show_location(self, n=3) -> str:
-        """/location [n] - Command that prints information about the current location, and the past n locations"""
-        if not self.state.navigation_history:
-            self.io.write_output("No navigation history available.")
-            return
+    return update, local_events
 
-        history = self.state.navigation_history[-n:]
-        scenes_dict = {scene.id: scene for scene in self.state.scenes}
-        location_details = []
 
-        for scene_id in history:
-            scene = scenes_dict.get(scene_id)
-            if scene:
-                details = (
-                    f"Scene ID: {scene.id}\n"
-                    f"Description: {scene.description}\n"
-                    f"Actions: {', '.join(scene.actions)}\n"
-                    f"Items: {', '.join(scene.items)}\n"
-                    f"Exits: {', '.join(scene.exits)}"
-                )
-                location_details.append(details)
+EventualityList = user_list_adapter = TypeAdapter(Optional[List[Eventuality]])
 
-        self.io.write_output(
-            "Current location and past {} locations:\n\n{}".format(
-                n, "\n\n".join(location_details)
-            )
-        )
 
-    def show_inventory(self) -> str:
-        """/inventory - Command that prints information about the current inventory"""
-        if not self.state.inventory:
-            self.io.write_output("Your inventory is empty.")
-        else:
-            inventory_list = "\n".join(f"- {item}" for item in self.state.inventory)
-            self.io.write_output(f"Current inventory:\n{inventory_list}")
+class EventualityTrigger(BaseModel):
+    id: str = Field(description="The eventuality id to trigger")
+    progress_log: str = Field(
+        description="Update about the player's progress or completion towards the eventuality"
+    )
+    completed: bool = Field(
+        description="Set to true if the eventuality is now complete!"
+    )
+    delete: bool = Field(
+        description="Set to true if the eventuality is now unreachable and should be removed"
+    )
 
-    def show_actions(self, query: str) -> str:
-        """/hint [query] - Command that prints a hint about the currently available actions and objectives"""
-        self.io.write_output(
-            "Hint about the currently available actions and objectives."
-        )
 
-    def handle_text_command(self, text: str) -> str:
-        """Handles the /text command"""
-        # Implement the logic for the /text command here
-        response = get_chat_response(text)
-        return response
+class EventualityTriggers(BaseModel):
+    triggered: List[EventualityTrigger]
 
-    def take_action(self, action: str) -> str:
-        """/action [action] - Command that attempts to perform an action"""
-        self.io.write_output("Attempting to perform action: {}".format(action))
+
+def run_simulation(time_node: TimeNode, events: List[LogItem]) -> Iterator[str]:
+    prompt = prompt_run_simulation(
+        dump_time_node(time_node),
+        dump_events(time_node, events),
+    )
+    # Todo - inject or prompt such that actions aren't immediately gratified. Especially for things like travel events, express the passage of time by injecting pauses, such as an event on a walk, or a conversation in a vehicle.
+
+    return get_client("large").stream(prompt)
+
+
+def summarize_time_node(time_node: TimeNode, events: List[LogItem]) -> TimeNode:
+    """
+    Adds new summary to the time node
+    """
+    update = time_node.model_copy(deep=True)
+    prompt = prompt_summarize_time_node(
+        dump_time_node(time_node),
+        dump_events(time_node, events),
+    )
+    response = get_client("small").text(prompt)
+    update.summary = response
+    return update
+
+
+# def update_characters(time_node: TimeNode, events: List[LogItem]) -> TimeNode:
+#     """
+#     Update the characters (descriptions, relationships) in the story based on the current state of the world and the player's action
+#     """
+#     # TODO - prompt for the character updates
+#     return time_node
+
+
+# def update_world_details(time_node: TimeNode, events: List[LogItem]) -> TimeNode:
+#     """
+#     Update the world details
+#     """
+#     # TODO - prompt for the world updates
+#     return time_node

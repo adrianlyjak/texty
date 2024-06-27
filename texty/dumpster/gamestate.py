@@ -35,7 +35,7 @@ class GameState(BaseModel):
     navigation_history: List[str] = []
     # past actions taken, from first to last
     action_history: List[str] = []
-    # Øitems in the inventory
+    # items in the inventory
     inventory: List[str] = []
 
 

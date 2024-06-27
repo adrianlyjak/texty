@@ -1,4 +1,0 @@
-ipykernel
-black
-aider-chat
-pytest

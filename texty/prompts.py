@@ -1,346 +1,301 @@
-import dataclasses
-import json
-import random
-import outlines
 from typing import List, Literal, Optional
+import outlines
+from pydantic import BaseModel, Field, TypeAdapter
 
-from pydantic import BaseModel, Field
-
-from texty.gamestate import GameState
+from texty.gametypes import Eventuality, LogItem, ProgressLog, TimeNode
 
 
-PROMPT_ROLE_GAME_DESIGNER = "Take on the role of a text adventure game designer. You create varied immersive adventures with well executed arcs. You're sharp witted and great at coming up with cool ideas on the fly."
-
-PROMPT_MECHANICS = """The game you are building has traditional text adventure game rules and mechanics.
-- The player interacts with text only, and the system responds dynamically
-- The player may inpect elements and ask questions
-- the player make take predefined actions
-- The player has an inventory and can use their inventory within their actions
-- The player can move between different connected "spaces" directionally (through doors, bridges, cardinal directions, etc.)"""
+##################################
+### prompts and state mutation ###
+##################################
 
 
 @outlines.prompt
-def gen_concepts(
-    n=3,
-    hint: Optional[str] = None,
-    previous: List[str] = [],
-    role=PROMPT_ROLE_GAME_DESIGNER,
+def game_prompt():
+
+    ### TODO describe character interactions, encourage them to rich and with their own motivations.
+    ### every character should have their own personality, and be a dynamic force. No character should tag along with the protagonist without divulging inner character, relationships, and conflict. They should say stuff and have observations from their unique perspective
+
+    ## If you're in an important place of interest, encourage forking, divergent paths for the player to explore. (Lead down false dead ends, side quests, and ambivalent ordered clue collection)
+
+    ## Allow the player to do associations. Give clues, and let the player put them together. Do not give progress away for free.
+
+    """
+    ## Rules
+
+    You are running a game simulation. The simulation is simple.
+    - The game contains a list of hidden potential eventualities
+    - The game is initialized with world state
+    - The player probes the game world
+    - The game progresses through player/game response loops (each loop is a timestep)
+    - At each timestep, the game updates its internal state, progressing eventualities, and updating the world details
+    - The game simulates an immersive, but narrative response to the player's actions
+
+    ## Guidelines to the simulator
+    - The game should guide the player through storytelling to the eventualities that have the most gravity in the current circumstances.
+    - The game ONLY controls external elements. The game NEVER controls the movement, speech, or actions of the player character.
+    - The game (and the assistant) is only the environment, never the player
+    - The game can and should provide past backstory for the player character, to give the player context.
+    - If the player tries to do irrelevant things, or fails to make progress, do not play along.
+    - Always guide them back to the main storyline.
+    - It's very important to note that this game is intentionally open ended. For example, avoid offering the player a list of options for next actions
+    - Most importantly, treat this as a simulation. Keep the world consistent, and frustratingly real.
+    - Do not allow the player to do whatever they want. Keep in mind physical, world, and time constraints.
+    - Mundanity is ok. Failure is common. This is an oppurtunity to explore how these eventualities might come to pass in a real world scenario.
+    - Respond with brief dull dead end responses, for requests that don't fit your mental model of the game. Part of the joy of the game for the player is discovering things. If every interaction is gratifying, the game is very unsatisfying. Be a stubborn challenger, you want the player to guess what you are thinking.
+    """
+
+
+@outlines.prompt
+def prompt_detect_intent(
+    player_action: str, time_node: str, preamble: str = game_prompt()
 ):
     """
-    {{role}}
+    {{preamble}}
 
-    What are some game concepts? Respond as a bulleted list using dashes.
+    ## Context
 
-    Example Response:
+    The current state of the game is:
+    {{time_node}}
 
-    - A mystery game set in a small town, where you must solve the murder of a local resident.
-    - A survival game set in a post-apocalyptic world, where you must scavenge for food and supplies and avoid the zombies that roam the streets.
-    - A puzzle game set in a labyrinth, where you must use your wits to find your way out.
-    - A role-playing game set in a fantasy world, where you must choose your own adventure and make decisions that will affect the outcome of the story.
-    {% for p in previous %}
-    - {{p}}
-    {% endfor %}
+    The player has just entered the following input:
+    {{player_action}}
 
-    What are {{n}} more game ideas? {% if hint %}Specifically, the player is interested in a game like this: '{{hint}}'{% endif %}
+    ## Instructions
+
+    You are now detecting the intent of the player input. The intent is one of "act", "inspect", or "other".
+
+    "inspect": The player is trying to interact with the game system, asking a question about the game, or getting details about the observable game state. Basically any question or request of the game world. Look for keywords like: how, what, why, look, inspect, where, read, ask). In response, the game will provide information about the game, doing some basic extrapolation about what would be realistic to the scenario, without affecting change or time advancing (e.g. no conversations occur, no travel occurs, just auditory and visual descriptions of the world). This is the most common type of request.
+    "act": The player is executing a change in the world. The game will advance one timestep, and world changes will occur. This should only be selected if the Player Character could conceivably achieve this action.
+    "other": This should be used for other requests, for example, questions about the rules, trying to do something impossible, repeating a previously failed action without anything new, or something that is not appropriate for the current context. If selected, the game will gently explain and guide the player to an appropriate intent.
+
+
+    Now, respond in the following format:
+    {
+      "thought": "a thought out single sentence analysis of which intent type is most appropriate for the given input",
+      "intent": "inspect"
+    }
+
     """
+
+
+type Intent = Literal["act", "inspect", "other"]
+
+
+class IntentDetection(BaseModel):
+    thought: str
+    intent: Intent
 
 
 @outlines.prompt
-def gen_world(description: str, role=PROMPT_ROLE_GAME_DESIGNER):
-    """
-    {{role}}
-
-    This is your current project: {{description}}
-
-    You're brainstorming what the world for this game is like. You're building up resources that you can potentially use later if you need a quick idea. Write down different ideas about places, people, rules, social concerns, events, etc. This does not need to be cohesive, not all ideas will be used. Focus on being creative.
-
-    Respond as a bulleted list using dashes. Do not include headers or preambles. Keep the list hetorogeneous and stocahastic in content.
-    """
-
-
-@outlines.prompt
-def gen_world_objective(
-    description: str,
-    world: list[str],
-    role=PROMPT_ROLE_GAME_DESIGNER,
-    mechanics: str = PROMPT_MECHANICS,
+def prompt_inspect_time_node(
+    input: str, story_json: str, events_json: str, preamble: str = game_prompt()
 ):
     """
-    {{role}}
+    {{preamble}}
 
-    This is your current project: {{description}}
+    ## Context
 
-    The following is a list of potential world details:
-    {% for w in world %}
-    - {{w}}
-    {% endfor %}
+    The current state of the game is:
+    ```
+    {{story_json}}
+    ```
 
-    {{mechanics}}
+    The following is a log of previous events:
+    ```
+    {{events_json}}
+    ```
 
-    You are now brainstorming potential game objectives. These are both large and small. Include both ideas for the main singular objective,
-    and ideas for small objectives and puzzles within potential spaces of the environment. Where possible, refer to details from previous brainstorm ideas, but don't constrain yourself.
+    The user input is:
+    '''
+    {{input}}
+    '''
 
-    Respond as a bulleted list using dashes. Do not include headers or preambles. Keep the list hetorogeneous and stocahastic in content.
+
+    ## Instructions
+
+    The player is currently inspecting the current world state.
+
+    You're the author, your write the story, not the player. When responding, first look at your mental model of the world and the story at this particular point in time. Imagine in isolation, a perfect untouched mental model. Then imagine the user's request. Does the user's request fit your mental model? If not, provide a "dead end" response. Make it short and bland.
+    This is incredibly important to get right. The joy of the game to the player, is to be a sleuth, and they are solving the puzzle that is you, and the answer they are trying to find is the perfect game.
+
+    Note also, the game will now provide a detailed description of the current world state, without affecting change or advancing time (e.g. no conversations occur, no travel occurs, just auditory and visual descriptions of the world)
+
+    Respond to their request succinctly. You are free to creatively make up some state about the world where appropriate, however refrain from giving away any details about state not observable by the player.
+
+    Respond now only with the text to return to the player:
     """
 
 
-def activate_game_state(
-    gamestate: GameState,
+@outlines.prompt
+def prompt_reject_input(
+    input: str, story_json: str, events_json: str, preamble: str = game_prompt()
+):
+    """
+    {{preamble}}
+
+    ## Context
+
+    The current state of the game is:
+
+    ```
+    {{story_json}}
+    ```
+
+    The following is a log of previous events:
+    ```
+    {{events_json}}
+    ```
+
+    The rejected user input is:
+
+    '''
+    {{input}}
+    '''
+
+    ## Instructions
+
+    The player has entered an input that is not quite appropriate for the current context. Gently redirect the user towards a more appropriate intent (inspection or action).
+
+    - If the player has requested something impossible, recommend something that they could do instead.
+    - If the player is asking about the rules, give a brief explanation of the relevant rules or an acceptable instruction.
+    - If the player is trying to go outside of the bounds of what would further any eventuality, tease some world details or hints, guiding them to re-engage with the given simulation. However don't say or change anything about the story that would affect the game state.
+
+    Now, respond only with the text to return to the player:
+    """
+
+
+EventualityList = user_list_adapter = TypeAdapter(Optional[List[Eventuality]])
+
+
+class EventualityTrigger(BaseModel):
+    id: str = Field(description="The eventuality id to trigger")
+    progress_log: str = Field(
+        description="Update about the player's progress or completion towards the eventuality"
+    )
+    completed: bool = Field(
+        description="Set to true if the eventuality is now complete!"
+    )
+    delete: bool = Field(
+        description="Set to true if the eventuality is now unreachable and should be removed"
+    )
+
+
+class EventualityTriggers(BaseModel):
+    triggered: List[EventualityTrigger]
+
+
+@outlines.prompt
+def prompt_progress_eventuality(
+    time_node_json: str,
+    events_json: str,
+    preamble: str = game_prompt(),
+):
+    """
+    {{preamble}}
+
+    ## Context
+
+    The current state of the game is:
+    ```
+    {{time_node_json}}
+    ```
+
+    The following is a log of previous events:
+    ```
+    {{events_json}}
+    ```
+
+    ## Instructions
+
+    Now you're evaluating the eventualities against the given circumstances in the context. Creatively consider whether each eventuality was effected. Look at the other events for triggers that may have incited this eventuality, or look at if this eventuality has some sort of inherent ticking clock, and if so, consider if enough timesteps have passed to trigger it's progression. There is a careful balance to strike between triggering eventualities too often, and not triggering them enough. Try to pace the story such that it takes around 50 steps to complete.
+
+    If nothing has triggered, respond with this json:
+    { "triggered": [] }
+
+    If something has triggered, think about the progression of the eventuality, and respond with a creative and specific description of how the eventuality has progressed or completed. This is where you make up game details, clues, characters. Respond with json, with the following format:
+    { "triggered": [{ "id": "the-eventuality-id", "progress_log": "A description of how the eventuality has progressed or completed", "completed": false, "delete": false }] }
+
+    Note that the eventuality is considered complete if the "completed" field is true. This may either be due to the eventuality reaching completion. Alternately, if the eventuality is now completely unreachable, and should be removed, set the "delete" field to true.
+    """
+
+
+@outlines.prompt
+def prompt_run_simulation(
+    time_node_json: str, events_json: str, preamble: str = game_prompt()
+):
+    """
+    {{preamble}}
+
+    ## Context
+
+    The current state of the game is:
+    ```
+    {{time_node_json}}
+    ```
+
+    The following is a log of previous events:
+    ```
+    {{events_json}}
+    ```
+
+    ## Instructions
+
+    You are now generating a game response to return to the user, simulating the response to their action. This is the real important part of the game, it's their only interaction with the world.
+
+    The game should guide the player through storytelling to the eventualities that have the most gravity. If the player tries to do irrelevant things, or fails to make progress or solve puzzles, do not play along. Always guide them back to the main storyline.
+
+    Tips:
+    - If any eventualities just triggered, weave it into the story.
+    - If not, how can you guide the players actions towards any eventualities?
+    - Remember to make the game engaging. Don't give things away for free, but lead the player in.
+
+    Now, respond only with the text to return to the player:
+    """
+
+
+@outlines.prompt
+def prompt_summarize_time_node(time_node_json: str, events_json: str):
+    """
+    Return a summary of the current updates to the story, to be displayed as a subject in a list
+
+    This is the current state of the story:
+    ```
+    {{time_node_json}}
+    ```
+
+    The following is a log of previous events:
+    ```
+    {{events_json}}
+    ```
+
+    Respond as a single short sentence with just the summary
+    """
+
+
+def dump_time_node(
+    time_node: TimeNode, id=False, event_log=False, previous=False
 ) -> str:
+    exclude = set()
+    if not id:
+        exclude.add("id")
+    if not event_log:
+        exclude.add("event_log")
+    if not previous:
+        exclude.add("previous")
+    return time_node.model_dump_json(indent=2, exclude=exclude)
 
-    return _gen_game_prompt(
-        _activate_game_states_for_zone(gamestate),
-        gamestate,
+
+LogItemList = TypeAdapter(List[LogItem])
+
+
+def dump_events(time_node: TimeNode, recent_events: List[LogItem] = []) -> str:
+    response = "\n".join(
+        [event.model_dump_json(indent=2) for event in time_node.event_log]
     )
-
-
-ZONE_FORMAT = """
-```yaml
-    title: The name of the zone, will be displayed to the player
-    id: unique-zone-slug-based-on-title-in-kebab-case
-    # optionally reference or create world details related to this zone
-    world_details:
-      - 5. A world detail selected from the list of potential world details that relates to this zone
-      - New: a new world detail 
-    description: A detailed description of the zone. This will be displayed to the player as they enter the zone
-    # optionally add 
-    objectives:
-      - 7. An object selected from the list of potential objectives that relates to this zone
-      - New: a new objective. Only add if it's needed! Objectives should be create sparingly to keep the game focused.
-    hidden_details:
-      - list of details and objects
-      - through questioning the game, the player may discover and use these
-      - they should relate to puzzles to solve for the objectives
-    # not required
-    characters:
-      - name: The name of the character
-        description: A description of the character
-    # There should always be at least one connected zone, but may be more
-    connected_zones:
-      - title: The name of the connected zone
-        id: unique-connected-zone-slug-based-on-title-in-kebab-case
-        connected_by: The way to get to the connected zone
-    ```
-"""
-
-
-@outlines.prompt
-def _activate_game_states_for_zone(gamestate: GameState):
-    """
-    ## Narrative
-
-    You are reviewing your general notes and building a detailed narrative for your game story. You'll do this by select a subset of your environment and objectives, and stitch them together to tell a cohesive narrative.
-
-    Respond in the following yaml format:
-
-    ```yaml
-    thought: a thoughtful review of the available environment details, drawing associations between those that tell a cohesive story
-    selections:
-      # This must contain at least one environment detail and one objective, but may be up to 10 combined. 4 is usually enough
-      - type: environment
-        index: 2 # the exact number of the environment detail to activate, selected from the list above
-        name: the exact text of the selected environment detail
-      - type: objective
-        index: 3 # the exact number of the objective to activate, selected from the list above
-        name: the exact text of the selected objective
-      - type: environment
-        new: true
-        name: A new environment detail required for this narrative
-    description: |-
-      A narrative description of the events, characters, zones, and puzzles required for the player to complete the narrative. This is your internal plan for this narrative, and you'll use it periodically during gameplay to judge the players completion. It should contain intriguing details, and interesting puzzles or research to solve.
-    ```
-
-    You must respond in yaml with only the specified fields. Your response will be read by a program that parses the text inside of the backticks, and all other text will be ignored.
-    """
-
-    # characters:
-    #   - name: The name of the character
-    #     description: A description of the character involved in this narrative
-    # zones:
-    #   - title: The name of the zone
-    #     id: the-name-of-the-zone
-    #     description: A detailed description of the zone
-    #     connected_zones:
-    #       - title: The name of the connected zone
-    #         id: connected-zone-slug
-    #         connected_by: The way to get to the connected zone
-    # puzzles:
-    #   - title: The name of the puzzle
-    #     description: A detailed description of the puzzle
-    #     actors:
-    #       - type: item
-    #         description: how does the item relate to the puzzle
-    #         zone: the-name-of-the-zone
-    #       - type: character
-    #         description: how does the character relate to the puzzle
-    #         zone: another-zone
-
-
-@outlines.prompt
-def _intro_zone(
-    gamestate: GameState,
-    zone_format=ZONE_FORMAT,
-):
-    """
-    ## Zone
-
-    Currently, you are working on creating a map of Zones. A Zone is a space within the game that the player occupies. A player always is in exactly one zone, and can only interact with elements within that space. They may move between interconnected zones.
-
-    Now, respond with a description for the first zone. Respond with the following yaml format:
-
-    {{zone_format}}
-
-    This is the player's first introduction to the story, so make it compelling and hook their interest!
-    """
-
-
-@dataclasses.dataclass
-class ConnectedZone:
-    title: str
-    description: str
-    authors_notes: List[str]
-
-
-class GenZone(BaseModel):
-    title: str = Field(description="A useful shortname to use as a title for this zone")
-    description: str = Field(
-        description="This is a detailed description of the zone from the players perspective"
-    )
-    connected_zones: List["GenConnectedZone"] = Field(
-        description="A list of new connected Zones reachable from this zone"
-    )
-    things: List["ZonePointOfInterest"] = Field(
-        description="Things that may be interacted with (people, objects, etc.). They may be part of larger puzzles, for example an object that may be used in a puzzle in another zone, or a puzzle within the zone that unlocks proceeding to a subsequent zone. These should always be related to an objective."
-    )
-    remove_notes: List["NoteRemove"] = Field(
-        description="Edits to make to the current notes. This will remove objectives or environments. Note that you can make updates by removing then adding a note."
-    )
-    add_notes: List["NoteAdd"] = Field(
-        description="New environments or objectives or objectives that should be added to the notes so you can remember what is happening in the story"
-    )
-
-
-class GenConnectedZone(BaseModel):
-    name: str = Field(description="The name of the connected zone")
-    route: str = Field(description="How to reach the zone from the current zone")
-
-
-class ZonePointOfInterest(BaseModel):
-    type: str
-    description: str
-
-
-@outlines.prompt
-def _gen_game_prompt(
-    prompt: str,
-    game: GameState,
-    role=PROMPT_ROLE_GAME_DESIGNER,
-    mechanics=PROMPT_MECHANICS,
-):
-    """
-    {{role}}
-
-    {{mechanics}}
-
-    This is your current project: {{game.description}}
-
-    # Game Notes
-
-    ## Game Environment
-
-    Lists ideas about places, people, rules, social concerns, events, etc.
-    {% if game.current_environment %}
-
-    Active environment details:
-    {% for e in game.current_environment %}
-    {{loop.index}}. {{e}}
-    {% endfor %}
-    {% endif %}
-
-    Environment ideas - not yet part of the story. Might be useful to sample from.
-    {% for e in game.environment %}
-    {{loop.index}}. {{e}}
-    {% endfor %}
-
-    ## Game Objectives
-
-    Lists game objectives, large and small. Both ideas for the main singular objective, and for small objectives and puzzles within potential spaces of the environment.
-    {% if game.current_objectives %}
-
-    Active objectives:
-    {% for o in game.current_objectives %}
-    {{loop.index}}. {{o}}
-    {% endfor %}
-    {% endif %}
-
-    Objectives ideas - not yet part of the story. Might be useful to sample from.
-    {% for o in game.objectives %}
-    {{loop.index}}. {{o}}
-    {% endfor %}
-
-    {{prompt}}"""
-
-
-garbage = """Respond according to the following format:
-
-    {{zone_format}}
-
-    Note that only the title and description will be immediately revealed to the player. Connected Zones and Things are discovered through text through later interaction with the scene. If there is something that should be obvious, reveal it in the description.
-
-    {% if connected_zone %}
-    You are working on a zone connected to the following zone:
-      Title: {{connected_zone.title}}
-      Description: {{connected_zone.description}}
-      Authors Notes:
-      {% for n in connected_zone.authors_notes %}
-      - {{n}}
-      {% endfor %}
-    {% else %}
-    You are working on creating game materials for the 1st zone in the game. This is the player's first introduction to the story, so make it compelling and hook their interest!
-    {% endif %}
-
-    """
-
-
-@dataclasses.dataclass
-class NewZone:
-    title: str
-    description: str
-    connected_zones: List[str]
-    things: List[str]
-
-
-@outlines.prompt
-def organize_prewriting_notes(
-    description: str,
-    potential_environment: List[str],
-    potential_objectives: List[str],
-    zone: NewZone,
-    fact_environment: List[str] = [],
-    fact_objectives: List[str] = [],
-    role=PROMPT_ROLE_GAME_DESIGNER,
-    mechanics=PROMPT_MECHANICS,
-):
-    """
-    {{role}}
-
-    {{mechanics}}
-
-    This is your current project: {{description}}
-
-    You have just written a new zone in your project. You have been working on the following zone:
-
-    Title: {{zone.title}}
-    Description: {{zone.description}}
-    Connected Zones:
-    {% for z in zone.connected_zones %}
-    - {{z}}
-    {% endfor %}
-    Things:
-    {% for t in zone.things %}
-    - {{t}}
-
-    Now, you are organizing your notes. You have a list of possible environment details, and possible objectives, and you need to mark any of them that you've used in this zone as facts.
-
-
-    """
+    if len(recent_events):
+        response += "\n// --- RECENT ---\n"
+        response += "\n".join(
+            [event.model_dump_json(indent=2) for event in recent_events]
+        )
+    return response

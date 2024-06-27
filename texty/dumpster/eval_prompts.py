@@ -7,7 +7,7 @@ from inspect_ai import Task, task
 from inspect_ai.dataset import MemoryDataset, Sample
 from inspect_ai.solver import generate
 from texty.prompts import activate_game_state, gen_world, gen_world_objective
-from texty.gamestate import GameState
+from texty.gametypes import GameState
 from texty.eval_utils import load_jsonl_data, render_prompt
 
 
