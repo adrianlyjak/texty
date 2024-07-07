@@ -93,6 +93,11 @@ class GradioInterface:
             self.game_output.add_history(self.game_output.inprogress)
         return self.game_output
 
+    def delete_game(self):
+        if self.game:
+            database.delete_game(self.game.scenario_id)
+        self.game = None
+
     def process_command(self, command: str) -> Iterator[GameOutput]:
         if not self.game:
             return "Error: Please initialize the game first."
@@ -169,18 +174,46 @@ with gr.Blocks(title="Texty") as demo:
                     chat = gr.Chatbot(
                         value=gradio_game.game_output.get_response_tuples(),
                         label="Texty",
-                        layout="panel",
+                        layout="bubble",
                     )
+                    # Add custom JavaScript to scroll the Chatbot to the bottom
+                    js_code = dedent(
+                        """
+                        <script type="text/javascript">
+                        function scrollToBottom() {
+                            let chatbot = document.querySelector('.bubble-wrap');
+                            console.log("hello world: ", chatbot);
+                            if (chatbot) {
+                                chatbot.scrollTop = chatbot.scrollHeight;
+                            }
+                        }
+                        // Scroll to bottom after the interface loads
+                        console.log("hiiiii");
+                        window.addEventListener('load', scrollToBottom);
+                        scrollToBottom();
+                        </script>
+                        """
+                    ).strip()
+
+                    # Add a hidden HTML component to include the JavaScript
+                    gr.HTML(js_code)
+
                     command_input = gr.Textbox(
                         label="Enter Command",
                         placeholder="Type /help for list of options",
                     )
                     submit_button = gr.Button("Submit", variant="primary")
                 syslog = gr.Textbox(
-                    label="System Log", lines=27, scale=0, min_width=300, visible=True
+                    label="System Log",
+                    lines=27,
+                    scale=0,
+                    min_width=300,
+                    visible=True,
+                    autoscroll=True,
                 )
             with gr.Row():
-                quit_button = gr.Button("Quit Game")
+                delete_button = gr.Button("Delete Game", variant="stop")
+                quit_button = gr.Button("Leave Game")
                 # scenario_id = gr.Textbox(label="Scenario ID")
                 # seed_name = gr.Textbox(label="Seed Name", value="zantar")
                 show_log = gr.Checkbox(label="Show Debug", value=True)
@@ -281,7 +314,12 @@ with gr.Blocks(title="Texty") as demo:
     def on_quit():
         return NONE
 
+    def on_delete():
+        gradio_game.delete_game()
+        return NONE
+
     quit_button.click(on_quit, outputs=[scenario_id_state])
+    delete_button.click(on_delete, outputs=[scenario_id_state])
 
     def toggle_log(show_log):
         return gr.update(visible=show_log)

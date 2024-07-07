@@ -43,7 +43,9 @@ class TimeNode(BaseModel):
 
 class LogItem(BaseModel):
     role: Literal["player", "game", "internal"]
-    type: Literal["act", "inspect", "other", "game-response", "eventuality-progress"]
+    type: Literal[
+        "act", "inspect", "other", "ambiguous", "game-response", "eventuality-progress"
+    ]
     text: str
     timestep: int = Field(
         description="The incrementing timestep of the game when this event occurred"

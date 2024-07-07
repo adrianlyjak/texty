@@ -126,7 +126,6 @@ def advance_time(
     events = [
         LogItem(type=intent, role="player", text=player_action, timestep=timestep)
     ]
-    eventuality_events = []
     if intent == "act":
         eventualities = []
         if not is_initialization:
@@ -145,6 +144,7 @@ def advance_time(
             if is_initialization
             else progress_eventualities(time_node, events)
         )
+        eventuality_events = []
 
         for log, eventuality in eventualities:
             eventuality_events.append(
@@ -157,7 +157,7 @@ def advance_time(
             )
         yield StatusUpdate(status="processing-game-response")
         response = ""
-        for update in run_simulation(time_node, events + eventuality_events):
+        for update in run_simulation(time_node, events, eventuality_events):
             response += update
             yield TextResponse(full_text=response, delta=update)
         events.append(
@@ -173,6 +173,20 @@ def advance_time(
         events.append(
             LogItem(role="game", type="game-response", text=response, timestep=timestep)
         )
+    elif intent == "unsure":
+        yield StatusUpdate(status="processing-game-response")
+        response = (
+            detected_intent.early_response if detected_intent is not None else None
+        )
+        events.append(
+            LogItem(
+                role="game",
+                type="game-response",
+                text=response
+                or "I'm unsure what your intent is. Can you clarify with either an inspect or an act command?",
+                timestep=timestep,
+            )
+        )
     else:
         yield StatusUpdate(status="processing-game-response")
         response = ""
@@ -184,7 +198,7 @@ def advance_time(
         )
 
     yield StatusUpdate(status="summarizing-time-node")
-    time_node = summarize_time_node(time_node, events + eventuality_events)
+    time_node = summarize_time_node(time_node, events)
 
     yield StatusUpdate(status="summarized-time-node", updated_time_node=time_node)
     # ignore the seed event, just useful for communicating context for the first iteration
@@ -243,7 +257,7 @@ def progress_eventualities(
     """
     Trigger eventuality events based on the player's action
     """
-    local_events: List[ProgressLog] = []
+    # local_events: List[ProgressLog] = []
     to_remove = []
     update = time_node.model_copy(deep=True)
 
@@ -251,12 +265,14 @@ def progress_eventualities(
     story_json = dump_time_node(update.model_copy(update={"eventualities": excluded}))
     prompt = prompt_progress_eventuality(
         story_json,
-        dump_events(time_node, events + local_events),
+        dump_events(time_node, events),
     )
     triggers: EventualityTriggers = get_client("large").json(
         prompt, EventualityTriggers
     )
+    local_events = []
     for trigger in triggers.triggered:
+        print("triggered eventuality", trigger)
         eventuality = [x for x in excluded if x.id == trigger.id]
         eventuality = eventuality[0] if len(eventuality) else None
         if eventuality:
@@ -308,10 +324,13 @@ class EventualityTriggers(BaseModel):
     triggered: List[EventualityTrigger]
 
 
-def run_simulation(time_node: TimeNode, events: List[LogItem]) -> Iterator[str]:
+def run_simulation(
+    time_node: TimeNode, events: List[LogItem], eventuality_events: List[LogItem]
+) -> Iterator[str]:
     prompt = prompt_run_simulation(
         dump_time_node(time_node),
         dump_events(time_node, events),
+        dump_events(time_node, eventuality_events) if len(eventuality_events) else None,
     )
     # Todo - inject or prompt such that actions aren't immediately gratified. Especially for things like travel events, express the passage of time by injecting pauses, such as an event on a walk, or a conversation in a vehicle.
 

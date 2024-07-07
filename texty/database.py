@@ -63,6 +63,13 @@ def list_games() -> List[tuple[datetime.datetime, TimeNode]]:
         return response
 
 
+def delete_game(scenario_id: str):
+    with db_pool.connection() as conn:
+        conn.execute("DELETE FROM active_node WHERE scenario_id = ?", (scenario_id,))
+        conn.execute("DELETE FROM time_nodes WHERE scenario_id = ?", (scenario_id,))
+        conn.commit()
+
+
 def get_node(id: str) -> Optional[TimeNode]:
     """
     Get a time node by id
