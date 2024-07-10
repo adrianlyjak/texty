@@ -203,6 +203,7 @@ with gr.Blocks(title="Texty") as demo:
                         label="Texty",
                         layout="bubble",
                         elem_id="le-chat",
+                        show_share_button=True,
                     )
                     command_input = gr.Textbox(
                         label="Enter Command",
@@ -269,6 +270,7 @@ with gr.Blocks(title="Texty") as demo:
                         "lost_expedition",
                         "blackwood_manor",
                         "time_travelers_dilemma",
+                        "postapocalypse",
                     ],
                     value="zantar",
                     multiselect=False,
@@ -371,4 +373,4 @@ with gr.Blocks(title="Texty") as demo:
 
 if __name__ == "__main__":
 
-    demo.launch()
+    demo.launch(share=True)

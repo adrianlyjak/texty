@@ -22,8 +22,8 @@ zantar = get_seed("zantar")
 lost_expedition = get_seed("lost_expedition")
 blackwood_manor = get_seed("blackwood_manor")
 time_travelers_dilemma = get_seed("time_travelers_dilemma")
+postapocalypse = get_seed("postapocalypse")
 
-# '''"The Time Traveler's Dilemma": Step into the shoes of Dr. Benjamin Grey, a brilliant scientist who invents a time machine. However, your experiments soon go awry as you inadvertently alter key events in history, leading to catastrophic consequences. Can you set things right before the fabric of reality unravels?'''
 # '''"The Haunting of Hollow Hill": As Emily Everly, a paranormal investigator, you are called to the remote town of Hollow Hill to investigate a series of mysterious disappearances. As you delve into the town's dark history and encounter restless spirits, you must uncover the truth behind the haunting before it claims your own soul.'''
 # '''"The Arctic Obsidian": Join Captain James Mallory on a perilous expedition to the Arctic Circle in search of a legendary gem known as the Arctic Obsidian. As you traverse treacherous ice fields and fend off rival explorers, you must navigate the harsh terrain and ancient curses that guard the precious stone.'''
 # '''"The Witches of Whitewood": In this supernatural mystery, you play as Detective Thomas Hawthorne, who is called to the quaint town of Whitewood to investigate a series of bizarre murders. As you uncover a coven of witches with sinister intentions, you must unravel the dark secrets that shroud the town before it falls prey to evil.'''

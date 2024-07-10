@@ -7,7 +7,7 @@ This is very much a work in progress prototype. The goal is to make a system tha
 - The bad: the game currently has some pretty rough edges like buggy repetitive responses. It's also not yet very imaginative with on the fly concepts, and not very good at giving other characters inner life.
 - The good: it does seem to direct, on its own, the player along its game structures, extrapolating a bit, and not getting too lost.
 
-Future plans: I'd like to explore better automatic pre-writing and refining the game object data structures to help make the game richer and have better momentum.
+Future plans: I'd like to explore better automatic pre-writing and refining the game object data structures to help make the game richer and have better momentum. Additionally, I'd like to introduce chance of failure as a concept (and evaluate the failure with a random number generator)--otherwise the LLM is usually too easily swayed by the players input, making the game world too dreamy.
 
 # Run it
 

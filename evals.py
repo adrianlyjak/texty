@@ -95,7 +95,7 @@ def eval_define_game():
         dataset=MemoryDataset(
             samples=[
                 Sample(
-                    input='"The Time Traveler\'s Dilemma": Step into the shoes of Dr. Benjamin Grey, a brilliant scientist who invents a time machine. However, your experiments soon go awry as you inadvertently alter key events in history, leading to catastrophic consequences. Can you set things right before the fabric of reality unravels?',
+                    input="In a post-apocalyptic world, the player must navigate a dangerous wasteland filled with mutated creatures and hostile factions in search of a rumored hidden paradise.",
                     target="",
                 )
             ],
