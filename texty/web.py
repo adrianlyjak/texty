@@ -5,9 +5,11 @@ import uuid
 import gradio as gr
 from textwrap import dedent
 from typing import Callable, Dict, Iterator, List, Optional, TypedDict
+
+from pydantic import TypeAdapter
 from texty import database, seeds
 from texty.game import AdvanceTimeProgress, Game, StatusUpdate, TextResponse
-from texty.gametypes import TimeNode
+from texty.gametypes import GameElement, TimeNode
 
 
 @dataclass
@@ -153,6 +155,25 @@ class ScenarioState(TypedDict):
     seed: str
 
 
+list_adapter = TypeAdapter(List[GameElement])
+
+SCROLL_BOTTOM = """
+function () {
+    const maxTime = 2000;
+    const start = new Date().getTime();
+    const el = document.querySelector('#le-chat .bubble-wrap');
+    const timer = setInterval(() => {
+        const hasChildren = !!el.querySelectorAll('.message-row').length
+        if (hasChildren) {
+            document.querySelector('#le-chat .bubble-wrap').scrollTo(0, document.querySelector('#le-chat .bubble-wrap').scrollHeight);
+            clearInterval(timer);
+        } else if (new Date().getTime() - start > maxTime) {
+            clearInterval(timer);
+        }
+    }, 100);
+}
+"""
+
 with gr.Blocks(title="Texty") as demo:
     database.init_db()
     gradio_game = GradioInterface()
@@ -163,10 +184,16 @@ with gr.Blocks(title="Texty") as demo:
 
     with gr.Row(visible=scenario_id_state.value != NONE) as game_row:
 
+        show_debug_default = False
+
         def advance_game(command):
             yield {command_input: ""}
             for update in gradio_game.process_command(command):
-                yield {syslog: update.event_log, chat: update.get_response_tuples()}
+                yield {
+                    syslog: update.event_log,
+                    chat: update.get_response_tuples(),
+                    json_view: (gradio_game.game.node.model_dump_json()),
+                }
 
         with gr.Column():
             with gr.Row():
@@ -175,29 +202,8 @@ with gr.Blocks(title="Texty") as demo:
                         value=gradio_game.game_output.get_response_tuples(),
                         label="Texty",
                         layout="bubble",
+                        elem_id="le-chat",
                     )
-                    # Add custom JavaScript to scroll the Chatbot to the bottom
-                    js_code = dedent(
-                        """
-                        <script type="text/javascript">
-                        function scrollToBottom() {
-                            let chatbot = document.querySelector('.bubble-wrap');
-                            console.log("hello world: ", chatbot);
-                            if (chatbot) {
-                                chatbot.scrollTop = chatbot.scrollHeight;
-                            }
-                        }
-                        // Scroll to bottom after the interface loads
-                        console.log("hiiiii");
-                        window.addEventListener('load', scrollToBottom);
-                        scrollToBottom();
-                        </script>
-                        """
-                    ).strip()
-
-                    # Add a hidden HTML component to include the JavaScript
-                    gr.HTML(js_code)
-
                     command_input = gr.Textbox(
                         label="Enter Command",
                         placeholder="Type /help for list of options",
@@ -205,10 +211,10 @@ with gr.Blocks(title="Texty") as demo:
                     submit_button = gr.Button("Submit", variant="primary")
                 syslog = gr.Textbox(
                     label="System Log",
-                    lines=27,
+                    lines=25,
                     scale=0,
                     min_width=300,
-                    visible=True,
+                    visible=show_debug_default,
                     autoscroll=True,
                 )
             with gr.Row():
@@ -216,20 +222,40 @@ with gr.Blocks(title="Texty") as demo:
                 quit_button = gr.Button("Leave Game")
                 # scenario_id = gr.Textbox(label="Scenario ID")
                 # seed_name = gr.Textbox(label="Seed Name", value="zantar")
-                show_log = gr.Checkbox(label="Show Debug", value=True)
+                show_log = gr.Checkbox(label="Show Debug", value=show_debug_default)
                 # init_button = gr.Button("Initialize Game")
+            with gr.Row():
+                json_view = gr.JSON(visible=show_debug_default)
 
         def stream_updates_on_change(state: "ScenarioState"):
             if state != NONE:
                 for update in gradio_game.initialize_game(
                     state["scenario_id"], state["seed"]
                 ):
-                    yield {syslog: update.event_log, chat: update.get_response_tuples()}
+                    yield {
+                        syslog: update.event_log,
+                        chat: update.get_response_tuples(),
+                        json_view: (
+                            gradio_game.game.node.model_dump_json()
+                            if gradio_game.game.node
+                            else None
+                        ),
+                    }
+                yield {
+                    syslog: gradio_game.game_output.event_log,
+                    chat: gradio_game.game_output.get_response_tuples(),
+                    json_view: (
+                        gradio_game.game.node.model_dump_json()
+                        if gradio_game.game.node
+                        else None
+                    ),
+                }
 
         scenario_id_state.change(
             stream_updates_on_change,
             inputs=[scenario_id_state],
-            outputs=[chat, syslog],
+            outputs=[chat, syslog, json_view],
+            js=SCROLL_BOTTOM,
         )
 
     with gr.Row(visible=scenario_id_state.value == NONE) as loader_row:
@@ -238,7 +264,12 @@ with gr.Blocks(title="Texty") as demo:
                 gr.Markdown("# Texty")
                 game_seeds = gr.Dropdown(
                     label="Game Seed",
-                    choices=["zantar", "lost_expedition"],
+                    choices=[
+                        "zantar",
+                        "lost_expedition",
+                        "blackwood_manor",
+                        "time_travelers_dilemma",
+                    ],
                     value="zantar",
                     multiselect=False,
                 )
@@ -322,20 +353,20 @@ with gr.Blocks(title="Texty") as demo:
     delete_button.click(on_delete, outputs=[scenario_id_state])
 
     def toggle_log(show_log):
-        return gr.update(visible=show_log)
+        return gr.update(visible=show_log), gr.update(visible=show_log)
 
-    show_log.change(fn=toggle_log, inputs=show_log, outputs=syslog)
+    show_log.change(fn=toggle_log, inputs=show_log, outputs=[syslog, json_view])
 
     submit_button.click(
         fn=advance_game,
         inputs=command_input,
-        outputs=[syslog, chat, command_input],
+        outputs=[syslog, chat, command_input, json_view],
     )
 
     command_input.submit(
         fn=advance_game,
         inputs=command_input,
-        outputs=[syslog, chat, command_input],
+        outputs=[syslog, chat, command_input, json_view],
     )
 
 if __name__ == "__main__":

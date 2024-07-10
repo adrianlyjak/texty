@@ -1,0 +1,63 @@
+{
+  "premise": "A futuristic detective mystery in Neo-Angeles about Zantar, a junior detective",
+
+  "game_elements": [
+    {
+      "element_id": "chief-of-police",
+      "name": "Chief of Police",
+      "element_type": "eventuality",
+      "past": [
+        "Zantar got the job in the first place because his uncle is on the force"
+      ],
+      "present": [
+        "Zantar's parter Jimbo told him he has some leads on making a little extra money"
+      ],
+      "future": [
+        "Through whatever means, Zantar climbs the corrupt ranks, becoming chief of police"
+      ]
+    },
+    {
+      "element_id": "oatmeal-killer",
+      "name": "Oatmeal Killer",
+      "element_type": "eventuality",
+      "past": [
+        "Strange killings have been occurring where residents of neo-angeles are found dead, watching oatmeal commercials on their AR glasses"
+      ],
+      "present": [
+        "The killings continue. The ad-networks have been notified to stop running the ad, but it continues to pop up without explanation"
+      ],
+      "future": []
+    },
+    {
+      "element_id": "ai-overlord-exposed",
+      "name": "AI Overlord",
+      "element_type": "eventuality",
+      "past": [],
+      "present": [],
+      "future": [
+        "Zantar uncovers a massive AI conspiracy controlling Neo-Angeles"
+      ]
+    },
+    {
+      "element_id": "cybernetic-underworld",
+      "name": "Cybernetic Underworld",
+      "element_type": "eventuality",
+      "past": [],
+      "present": [],
+      "future": [
+        "Zantar becomes entangled in an underground cybernetic enhancement ring"
+      ]
+    },
+    {
+      "element_id": "zantar",
+      "name": "Zantar",
+      "element_type": "character",
+      "past": [],
+      "present": [
+        "This is the player character. All player actions are performed as Zantar",
+        "Zantar is a junior detective"
+      ],
+      "future": []
+    }
+  ]
+}

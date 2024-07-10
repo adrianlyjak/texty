@@ -113,7 +113,11 @@ class OpenAIModel(LLMModel):
         else:
             txt = response.choices[0].message.content
 
-        return schema.model_validate_json(txt)
+        try:
+            return schema.model_validate_json(txt)
+        except Exception as e:
+            print("could not parse", txt)
+            raise
 
 
 class AnthropicModel(LLMModel):

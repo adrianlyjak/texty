@@ -1,8 +1,16 @@
+import json
 from typing import List, Literal, Optional
 import outlines
 from pydantic import BaseModel, Field, TypeAdapter
 
-from texty.gametypes import Eventuality, LogItem, ProgressLog, TimeNode
+from texty.gametypes import (
+    Eventuality,
+    GameElement,
+    LogItem,
+    ProgressLog,
+    RetiredGameElement,
+    TimeNode,
+)
 
 
 ##################################
@@ -11,7 +19,7 @@ from texty.gametypes import Eventuality, LogItem, ProgressLog, TimeNode
 
 
 @outlines.prompt
-def game_prompt():
+def game_system_prompt():
 
     ### TODO describe character interactions, encourage them to rich and with their own motivations.
     ### every character should have their own personality, and be a dynamic force. No character should tag along with the protagonist without divulging inner character, relationships, and conflict. They should say stuff and have observations from their unique perspective
@@ -24,42 +32,137 @@ def game_prompt():
     ## Rules
 
     You are running a game simulation. The simulation is simple.
-    - The game contains a list of hidden potential eventualities
-    - The game is initialized with world state
-    - The player probes the game world
+    - The game contains a list of game elements, from small to large
+    - The game elements are initialized with world state (characters, places, things), and "eventualities", which are possible game directions
     - The game progresses through player/game response loops, either inspecting or acting against the world
-    - whenever the player acts, a timestep occurs
+    - First, The player probes the game world (their intent classified as "act" or "inspect")
     - At each timestep, the game updates its internal state, progressing eventualities, and updating the world details
     - The game simulates an immersive, but narrative response to the player's actions
 
     ## Guidelines to the simulation
 
-    - The game should guide the player through storytelling to the eventualities that have the most gravity in the current circumstances.
-    - The game creates a rich, immersive, and consistent world and characters
+    - The game should guide the player towards the eventualities with the most gravity considering current circumstances.
     - The game ONLY controls external elements. The game NEVER controls the movement, speech, or actions of the player character.
     - I repeat, the game never proceeds and narrates the actions of the character. THIS IS COMPLETELY OFF LIMITS.
-    - The game may divulge backstory of the player Character in the form of inner dialogue
+    - The game may divulge backstory of the player character in the form of inner dialogue
     - The game can and should provide past backstory for the player character, to give the player context.
     - Otherwise, the game (and the assistant) only ever acts as the environment, never the player
     - It's very important to note that this game is intentionally open ended. For example, avoid offering the player a list of options for next actions.
     - Most importantly, treat this as a simulation. Keep the world consistent, and frustratingly real.
     - Mundanity is ok. Failure is common. This is an opportunity to explore how these eventualities might come to pass in a real world scenario.
     - Do not allow the player to do whatever they want. Keep in mind physical, world, and time constraints.
-    - For requests that don't fit your mental model of the game, respond with brief dull dead end responses. Part of the joy of the game for the player is discovering things. If every interaction is gratifying, the game is very unsatisfying. Be a stubborn challenger, you want the player to guess what you are thinking.
+    - For requests that don't fit your mental model of the game, respond with brief dull dead end responses. Part of the joy of the game for the player is discovering things. If every interaction is gratifying, the game is very unsatisfying. You want the player to guess what you are thinking, and make it obvious if they get it wrong
+    """
+
+
+class TimeNodeTemplate(BaseModel):
+    premise: str = Field(description="What's the premise of this story")
+    game_elements: List["GameElement"] = Field(
+        description="Planning nodes in the story",
+        default_factory=list,
+    )
+
+
+@outlines.prompt
+def desc_intent_inspect():
+    """
+    Inspect - In response to requests of this type, the game will provide information about the game, doing some basic extrapolation about what would be realistic to the scenario, without affecting signifant change or time advancing (e.g. no travel occurs, just auditory and visual descriptions of the world). The player may only interact with his immediate environment, walking short distances, for example around a small room.
+    """
+
+
+@outlines.prompt
+def desc_intent_act():
+    """
+    Act - In response to requests of this type, the game will play out the players action and the game world's response. An action has consequence, and moves the game forward. Actions have a chance of failure that depends on their complexity and the specific context. In some instances, specific non-action is considered an action, for example allowing something to happen that is already in motion.
+    """
+
+
+@outlines.prompt
+def desc_intent_other():
+    """
+    Other - The player has requested an action somewhat outside the normal mechanisms of the game. For example, questions about the rules, trying to do something impossible, repeating a previously failed action without anything new. If selected, the game will helpfully assist the player, gently guiding the player to an appropriate intent: inspecting or a more realistic action. Note that the game _should_ allow any action that is realistically achievable, no matter how stupid or reckless. Those should instead be "act", but perhaps should have negative consequences.
+    """
+
+
+@outlines.prompt
+def desc_game_element_python():
+    """
+    class GameElement():
+        element_id: str = Field(description="The unique id for the game element. A readable kebab-case slug")
+        name: str = Field(description="A short name of the game element")
+        element_type: Literal["character", "object", "place", "eventuality", "theme", "event", "goal", "idea"]
+        past: List[str] = Field(description="Backstory of the game element")
+        present: List[str] = Field(description="Descriptions of the game element. Includes events that have occurred to the event over the course of the game")
+        future: List[str] = Field(description="Directions or goals for this game element. Used for speculative future planning. Conflicting goals with other elements are a primary source of story conflict")
+    """
+
+
+class GamePremise(BaseModel):
+    premise: str
+    game_elements: List["GameElement"]
+
+
+@outlines.prompt
+def prompt_define_game(
+    premise: str, game_element_schema: str = desc_game_element_python()
+):
+    """
+    Given a rough textual premise for a text adventure store, generates a game "seed" according to the game schema.
+
+    Return a json object with the following format:
+
+    ```
+    {
+        "premise": str,
+        "game_elements": List[GameElement]
+    }
+    ```
+
+    Where a game element is a dictionary that follows the GameElement schema:
+
+    ```python
+    {{ game_element_schema }}
+    ```
+
+    The following is a definition of the game element types:
+    "character" - Includes both NPCs and the player character
+    "object" - physical item. Sometimes can be acquired
+    "place" - A physical location, large or small (country, field, building, room, etc)
+    "eventuality" - Something that may come to pass. These are the primary drivers of the story
+    "theme" - abstract ideas, or stylistic choices, genres etc.
+    "event" - something that happens at a time and a place
+    "goal" - player objective
+    "idea" - a play on ideas, perhaps a premise, such as what if some people were magical, or what if people turned into frogs at night
+
+    - Good stories leave details to be made up and explored during the course of the game. Focus on defining boundaries, so focus on defining types such as "eventuality", "theme", "goal", and "idea".
+    - Keep in mind that there's no need to define all of "past", "present" or "future" attributes. These are optional, and will be filled in automatically as the game progresses! The field names may be entirely left out if unneeded at the moment. Past sets the scena and the trajectory, present sets the current scene and circumstances that the game starts with, and future, is a specific detail that may come to pass that guides the stories narrative.
+    - Your response should be specific, using names and places. Commit! You won't get a chance to revise these elements, only to add to them. Hand-waving is strictly off limits. Just leave that out if you're not sure.
+
+    You are currently working on the following premise:
+    {{ premise }}
+
+    Now respond with only the json object in the format above.
+
     """
 
 
 @outlines.prompt
 def prompt_detect_intent(
-    player_action: str, time_node: str, preamble: str = game_prompt()
+    player_action: str,
+    premise: str,
+    game_elements: str,
+    preamble: str = game_system_prompt(),
 ):
     """
     {{preamble}}
 
     ## Context
 
-    The current state of the game is:
-    {{time_node}}
+    The premise of the game is:
+    {{premise}}
+
+    The current state of the world is:
+    {{game_elements}}
 
     The player has just entered the following input:
     {{player_action}}
@@ -69,9 +172,9 @@ def prompt_detect_intent(
     You are now detecting the intent of the player input. The intent is one of "act", "inspect", or "other".
 
     "inspect": The player is trying to interact with the game system, asking a question about the game, or getting details about the observable game state. Basically any question or request of the game world. Look for keywords like: how, what, why, look, inspect, where, read, ask). In response, the game will provide information about the game, doing some basic extrapolation about what would be realistic to the scenario, without affecting change or time advancing (e.g. no travel occurs, just auditory and visual descriptions of the world). The player may only interact with his immediate environment, walking short distances, for example around a small room. This is the most common type of request.
-    "act": The player is executing a change in the world. The game will advance one timestep, and world changes will occur. This should only be selected if the Player Character could conceivably achieve this action. Action oriented things like opening, calling, walking, running, yelling, and so on.
-    "ambiguous": You are not sure what the player is intending, or they are trying to do too many actions at once. The game will respond with a clarifying prompt.
-    "other": This should be used for other requests, for example, questions about the rules, trying to do something impossible, repeating a previously failed action without anything new. If selected, the game will gently explain and guide the player to an appropriate intent. Note that the game _should_ allow any action, no matter how stupid or reckless. Those should instead be "act".
+    "act": The player is executing a change in the world and thereby has consequences. Actions move the game forward, inherently have a chance of failure that varies depending on the action, and have consequences. This should only be selected if the Player Character could conceivably achieve this action. Action oriented things like opening, calling, walking, running, yelling, and so on. In some instances, specific non-action is considered an action, for example allowing something to happen that is already in motion.
+    "ambiguous": You are not sure what the player is intending. The game will respond with a clarifying prompt.
+    "other": This should be used for other requests, for example, questions about the rules, requests for hints, attempts to do something impossible, repeating a previously failed action without anything new, or general table talk or meta questoins. If selected, the game will gently explain and guide the player to an appropriate intent. Note that the game _should_ allow any action, no matter how stupid or reckless. Those should instead be "act".
 
 
     Now, respond in the following json format:
@@ -94,114 +197,21 @@ class IntentDetection(BaseModel):
 
 
 @outlines.prompt
-def prompt_inspect_time_node(
-    input: str, story_json: str, events_json: str, preamble: str = game_prompt()
-):
-    """
-    {{preamble}}
-
-    ## Context
-
-    The current state of the game is:
-    ```
-    {{story_json}}
-    ```
-
-    The following is a log of previous events:
-    ```
-    {{events_json}}
-    ```
-
-    The user input is:
-    '''
-    {{input}}
-    '''
-
-
-    ## Instructions
-
-    The player is currently inspecting the current world state.
-
-    You're the author, you write the story, not the player. When responding, first look at your mental model of the world and the story at this particular point in time. Imagine in isolation, the perfect logical branch points of the story. Then imagine the user's request. Does the user's request fit your mental model? If not, provide a "dead end" response. Make it short and bland, subtly hinting at one of your branches.
-    This is incredibly important to get right. The joy of the game to the player, is to be a sleuth, and they are solving the puzzle that is you.
-
-    During an inspection event, you, the author, will now provide a detailed description of the current world state--without affecting change or advancing time (e.g. no travel occurs, just auditory and visual descriptions of the world)
-
-    Respond to their request succinctly. You are free to creatively make up some state about the world where appropriate, however refrain from giving away any details about state not observable by the player.
-
-    Respond now only with the text to return to the player:
-    """
-
-
-@outlines.prompt
-def prompt_reject_input(
-    input: str, story_json: str, events_json: str, preamble: str = game_prompt()
-):
-    """
-    {{preamble}}
-
-    ## Context
-
-    The current state of the game is:
-
-    ```
-    {{story_json}}
-    ```
-
-    The following is a log of previous events:
-    ```
-    {{events_json}}
-    ```
-
-    The rejected user input is:
-
-    '''
-    {{input}}
-    '''
-
-    ## Instructions
-
-    The player has entered an input that is not quite appropriate for the current context. Gently redirect the user towards a more appropriate intent (inspection or action).
-
-    - If the player has requested something impossible, recommend something that they could do instead.
-    - If the player is asking about the rules, give a brief explanation of the relevant rules or an acceptable instruction.
-    - If the player is trying to go outside of the bounds of what would further any eventuality, tease some world details or hints, guiding them to re-engage with the given simulation. However don't say or change anything about the story that would affect the game state.
-
-    Now, respond only with the text to return to the player:
-    """
-
-
-EventualityList = user_list_adapter = TypeAdapter(Optional[List[Eventuality]])
-
-
-class EventualityTrigger(BaseModel):
-    id: str = Field(description="The eventuality id to trigger")
-    progress_log: str = Field(
-        description="Update about the player's progress or completion towards the eventuality"
-    )
-    completed: bool = Field(
-        description="Set to true if the eventuality is now complete!"
-    )
-    delete: bool = Field(
-        description="Set to true if the eventuality is now unreachable and should be removed"
-    )
-
-
-class EventualityTriggers(BaseModel):
-    triggered: List[EventualityTrigger]
-
-
-@outlines.prompt
 def prompt_plan(
     player_action: str,
-    time_node_json: str,
+    intent: str,
+    premise: str,
     events_json: str,
     retired_game_events_json: str,
     active_game_events_json: str,
-    preamble: str = game_prompt(),
+    preamble: str = game_system_prompt(),
+    desc_inspect: str = desc_intent_inspect(),
+    desc_act: str = desc_intent_act(),
+    desc_other: str = desc_intent_other(),
+    game_element_def: str = desc_game_element_python(),
 ):
     """
-    {{preamble}}
+    {{ preamble }}
 
     ## Instructions
 
@@ -210,13 +220,7 @@ def prompt_plan(
     A game element has the following shape:
 
     ```
-    GameElement:
-        element_id: str = Field(description="The unique id for the game element. A readable kebab-case slug")
-        name: str = Field(description="A short name of the game element")
-        type: Literal["character", "object", "place", "eventuality", "theme", "event", "goal", "idea"]
-        past: List[str] = Field(description="Backstory of the game element")
-        present: List[str] = Field(description="Descriptions of the game element. Includes events that have occurred to the event over the course of the game")
-        future: List[str] = Field(description="Directions or goals for this game element. Used for speculative future planning. Conflicting goals with other elements are a primary source of story conflict")
+    {{ game_element_def }}
     ```
 
     In order to update the game, respond as a json object with the following format:
@@ -232,7 +236,7 @@ def prompt_plan(
       "type": "add_game_element",
       "element_id": str,
       "name": str,
-      "type": str,
+      "element_type": str,
       "past": List[str],
       "present": List[str],
       "future": List[str]
@@ -241,7 +245,7 @@ def prompt_plan(
     {
       "type": "retire_game_element",
       "element_id": str,
-      "reason": str
+      "retired_reason": str
     },
     // updates and existing game element, targetted by ID. For small changes, strings can be added to the fields, or for larger rewrites, the entire list can be replaced
     {
@@ -258,174 +262,154 @@ def prompt_plan(
         "future": Optional[List[str]]
       }
     },
-    // if the game has reached a conclusion, describe why, and end the game
+    // if the game has reached a conclusion, describe why (is_success is whether the player "won" or "lost"). Game is over after this event is fired
     {
       "type": "end_game",
-      "game_end_event": {
-        "eventuality_id": str,
-        "is_success": bool,
-        "description": str
-      }
+      "is_success": bool,
+      "description": str
     }
-    ]
+    ],
+    // finally, a summary of the above set of changes, to be used as a title for this step of the game
+    "summary": str
     }
     ```
 
-    Using this schema of updates, you are simulating the game's response to the player's action, and are able to keep a consistent narrative over player actions.
+
+    Using this schema of updates, you are simulating the game's response to the player's action, and are able to keep a consistent narrative over player actions. You're the author, you write the story, not the player. When responding, first look at your mental model of the world and the story at this particular point in time. Imagine in isolation, the perfect logical branch points of the story. Then imagine the user's request. Does the user's request fit your mental model? If not, provide a "dead end" update. Make it short and bland, subtly hinting at some of your other branches (and perhaps extending their detail while they have your attention).
 
     Tips:
+    - There are only 4 legal types of events: "add_game_element", "retire_game_element", "update_game_element", and "end_game".
     - Remember to make the game engaging. Don't give things away for free, but lead the player in.
     - Use GameElements to build and update long term plans. This lends continuity and progression which makes the game stay interesting.
     - Give NPCs inner life. They have their own perspectives and motivations. Make their stories consistent and interesting.
     - Mix in dialogue where appropriate.
+    - The game ONLY controls external elements. The game NEVER controls the movement, speech, or actions of the player character THIS IS COMPLETELY OFF LIMITS.
     - The game should frequently end, for example with death, entrapment, abduction. The player can undo their actions, so seeing abrupt or tragic ends are exciting and add stakes.
     - The game should proceed with small logical steps. If the players actions on the outside world disagree with the GameElements logical consistency, the game should respond with a non-action.
     - Minimal game changes should occur when the player inspects. Use this opportunity to instead plan future motivations.
+    - past, present, and future should only be used for important specifics, not for atmospheric writing.
+    - Do not add any events if they are not needed. Absolutely avoid superfluous events.
 
 
     ## Context
 
-    The current state of the game is:
-    ```
-    {{time_node_json}}
-    ```
-
-    The following is list of retired GameElements:
-    ```
-    {{retired_game_events_json}}
-    ```
-
-    The following is a list of player game responses:
-    ```
-    {{events_json}}
-    ```
+    The premise of the current game is:
+    '''
+    {{premise}}
+    '''
 
     The following is a list of the current active GameElements:
     ```
     {{active_game_events_json}}
     ```
 
+    {% if retired_game_events_json %}
+    The following is list of retired GameElements:
+    ```
+    {{retired_game_events_json}}
+    ```
+
+    {% endif %}
+    {% if events_json %}
+    The following is a list of player/game interactions. This is the only data that the player can see:
+    ```
+    {{events_json}}
+    ```
+
+    {% endif %}
     The player has just executed the game with this input:
     ```
     {{player_action}}
     ```
+
+    The player's input has been classified as having an intent of "{{intent}}". The following is instructions for how you should respond to this type of input
+
+    {% if intent == "inspect" %}
+    {{desc_inspect}}
+    {% elif intent == "act" %}
+    {{desc_act}}
+    {% elif intent == "other" %}
+    {{desc_other}}
+    {% endif %}
 
     Now, respond only as json according to the specified format
     """
 
 
 @outlines.prompt
-def prompt_progress_eventuality(
-    time_node_json: str,
+def prompt_respond_to_action(
+    player_action: str,
+    intent: str,
+    premise: str,
+    game_updates_json: str,
+    game_elements_prev_json: str,
     events_json: str,
-    preamble: str = game_prompt(),
+    preamble: str = game_system_prompt(),
+    desc_inspect: str = desc_intent_inspect(),
+    desc_act: str = desc_intent_act(),
+    desc_other: str = desc_intent_other(),
 ):
     """
     {{preamble}}
 
     ## Instructions
 
-    You are now evaluating all eventualities against the given circumstances in the context. Creatively consider whether each eventuality was affected by the player's actions. Look at if this eventuality has some sort of inherent ticking clock, and if so, consider if enough timesteps have passed to trigger a story event. There is a careful balance to strike between triggering eventualities too often, and not triggering them enough. Try to pace the story such that it takes around 50 actions to complete. If there is not player action, it's good to at least trigger one eventuality with some sort of backstory that is not immediately visible to the player, but could be soon. This helps build backstory and model the world.
+    You will now be communicating the simulation's internal updates to the player. While you've made a plan, the devil's in the details, you need to write the scene and bring it all together. This is the real writing for the game, your response is the player's only interaction with the world. None of the game update plan is revealed to the player, you are the voice of the story communicating it into an immersive narrative adventure.
 
-    If nothing has triggered, respond with this json:
-    { "triggered": [] }
-
-    If something has triggered, think about the progression of the eventuality, and respond with a creative and specific description of how the eventuality has progressed or completed. This is where you make up game details, clues, characters. If the player has done something dangerous or reckless, considering triggering a premature end to the game.
-
-    Respond with json, with the following format:
-    { "triggered": [{ "id": "the-eventuality-id", "progress_log": "A description of how the eventuality has progressed or completed", "completed": false, "delete": false }] }
-
-    Note that the eventuality is considered complete if the "completed" field is true. This may either be due to the eventuality reaching completion. Alternately, if the eventuality is now completely unreachable, and should be removed, set the "delete" field to true.
+    Guidelines
+    - Through storytelling, guide the player towards interactions that evolve towards the game's potential future states
+    - This is a text adventure game. End your responses with leading indicators, such as cliff-hangers, or prompts for action, or curious questions about things to look at closer
+    - If the player is asking about the game in general, prefix your response with "Out of Character: ", and give a reasonable response
+    - Pay close attention to the previous "Game" answers: build responses based on previous concepts, and avoid being repetitive
 
     ## Context
 
-    The current state of the game is:
-    ```
-    {{time_node_json}}
-    ```
+    The premise of the game is:
+    '''
+    {{premise}}
+    '''
 
-    The following is a log of previous events:
-    ```
-    {{events_json}}
-    ```
+    The player's input has been classified as having an intent of "{{intent}}". The following is instructions for how you should respond to this type of input
 
-    Respond with json, with the following format:
-    { "triggered": [{ "id": "the-eventuality-id", "progress_log": "A description of how the eventuality has progressed or completed", "completed": false, "delete": false }] }
-    """
-
-
-@outlines.prompt
-def prompt_run_simulation(
-    time_node_json: str,
-    events_json: str,
-    eventuality_events_json: Optional[str],
-    preamble: str = game_prompt(),
-):
-    """
-    {{preamble}}
-
-    ## Instructions
-
-    You are now generating a game response to return to the user, simulating the response to their action. This is the real writing for the game, your response is the player's only interaction with the world.
-
-    Closely read the eventualities, and guide the player through storytelling towards the eventualities that have the most gravity in this moment. If the player tries to do irrelevant, reckless, or dumb things without merit, play along, but lead them to a dead end or a premature ending. This will allow you to continue the story, but give the player a sense of autonomy.
-
-    The game ONLY controls external elements. The game NEVER controls the movement, speech, or actions of the player character. I repeat, the game never proceeds and narrates the actions of the character. THIS IS COMPLETELY OFF LIMITS. You may only end your response prompting a user for an action.
-
-    Tips:
-    - If any eventuality events just triggered, weave it into the story. The player has not been told about any of these events, so be sure to be explicit if you want the player to know what happened. (Note that some events should not yet be divulged.)
-    - If no eventualities triggered, how can you guide the players actions towards any eventualities?
-    - Remember to make the game engaging. Don't give things away for free, but lead the player in.
-    - Mix in dialogue where appropriate.
-    - Give NPCs inner life. They have their own perspectives and motivations. Make their stories consistent and interesting.
-    - The game should frequently end, for example with death, entrapment, abduction. The player can undo their actions, so seeing abrupt or tragic ends are exciting.
-
-    ## Context
-
-    The current state of the game is:
-    ```
-    {{time_node_json}}
-    ```
-
-    The following is a log of previous events:
-    ```
-    {{events_json}}
-    ```
-
-    {% if eventuality_events_json %}
-    The following is a log of eventuality events that have just occurred (The player has not been informed of these! Make sure to narrate them!):
-    ```
-    {{eventuality_events_json}}
-    ```
+    {% if intent == "inspect" %}
+    {{desc_inspect}}
+    {% elif intent == "act" %}
+    {{desc_act}}
+    {% elif intent == "other" %}
+    {{desc_other}}
     {% endif %}
 
-    ## Instructions
-
-    Now, respond only with the text to return to the player:
-    """
-
-
-@outlines.prompt
-def prompt_summarize_time_node(time_node_json: str, events_json: str):
-    """
-    Return a summary of the current updates to the story, to be displayed as a subject in a list
-
-    This is the current state of the story:
+    The following is a list of the game elements before the updates:
     ```
-    {{time_node_json}}
+    {{game_elements_prev_json}}
     ```
 
-    The following is a log of previous events:
+    {% if events_json %}
+    The following is a list of player/game interactions. This is your conversation history, and is the only content that the player can see:
     ```
     {{events_json}}
     ```
 
-    Respond as a single short sentence with just the summary
+    {% endif %}
+    The player has just executed the game with this input:
+    ```
+    {{player_action}}
+    ```
+
+    This is your planned update:
+    ```
+    {{game_updates_json}}
+    ```
+
+    Now, respond with the exact text to return to the player:
     """
 
 
 def dump_time_node(
-    time_node: TimeNode, id=False, event_log=False, previous=False
+    time_node: TimeNode,
+    id: bool = False,
+    event_log: bool = False,
+    previous: bool = False,
 ) -> str:
     exclude = set()
     if not id:
@@ -434,7 +418,7 @@ def dump_time_node(
         exclude.add("event_log")
     if not previous:
         exclude.add("previous")
-    return time_node.model_dump_json(indent=2, exclude=exclude)
+    return time_node.model_dump_json(indent=2, include=premise)
 
 
 LogItemList = TypeAdapter(List[LogItem])
@@ -450,3 +434,23 @@ def dump_events(time_node: TimeNode, recent_events: List[LogItem] = []) -> str:
             [event.model_dump_json(indent=2) for event in recent_events]
         )
     return response
+
+
+def dump_game_elements(game_elements: List[GameElement]) -> str:
+    return (
+        "[\n"
+        + ",\n".join([el.model_dump_json(indent=2) for el in game_elements])
+        + "\n]"
+    )
+
+
+def dump_retired_game_elements(game_elements: List[RetiredGameElement]) -> str:
+    def dump_one(retired_game_element: RetiredGameElement) -> str:
+        return json.dumps(
+            {
+                "id": retired_game_element.id,
+                "retired_reason": retired_game_element.retired_reason,
+            }
+        )
+
+    return "[\n" + ",\n".join([dump_one(el) for el in game_elements]) + "\n]"

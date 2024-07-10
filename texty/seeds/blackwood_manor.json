@@ -1,0 +1,80 @@
+{
+  "premise": "The Phantom Manor: In this Gothic tale, you assume the role of Elizabeth Blackwood, a young woman who inherits a cursed mansion from her late uncle. As you explore the eerie halls and encounter vengeful spirits, you must uncover the truth behind the family's dark past before it's too late.",
+  "game_elements": [
+    {
+      "element_id": "elizabeth-blackwood",
+      "name": "Elizabeth Blackwood",
+      "element_type": "character",
+      "past": [
+        "Grew up hearing rumors about the Blackwood family curse",
+        "Lost her parents in a mysterious accident at a young age"
+      ],
+      "present": ["Recently inherited the Blackwood Manor from her late uncle"]
+    },
+    {
+      "element_id": "blackwood-manor",
+      "name": "Blackwood Manor",
+      "element_type": "place",
+      "past": [
+        "Built in the 1800s by the prosperous Blackwood family",
+        "Rumored to be haunted by vengeful spirits of family members"
+      ],
+      "present": [
+        "Standing in a state of disrepair",
+        "Eerie and unsettling atmosphere",
+        "Strange occurrences at night"
+      ]
+    },
+    {
+      "element_id": "vengeful-spirits",
+      "name": "Vengeful Spirits",
+      "element_type": "character",
+      "past": [
+        "Spirits of deceased Blackwood family members who met tragic ends"
+      ],
+      "present": ["Haunt the halls of the manor, seeking retribution"]
+    },
+    {
+      "element_id": "family-curse",
+      "name": "Family Curse",
+      "element_type": "theme",
+      "past": ["Curse placed on the Blackwood family by a wronged ancestor"],
+      "present": ["Manifests as misfortune and death among family members"]
+    },
+    {
+      "element_id": "inheritance-letter",
+      "name": "Inheritance Letter",
+      "element_type": "object",
+      "past": [
+        "Sent by her late uncle with the details of the manor's inheritance"
+      ],
+      "present": ["Contains clues about the manor’s hidden secrets"]
+    },
+    {
+      "element_id": "unearth-the-truth",
+      "name": "Unearth the Truth",
+      "element_type": "goal",
+      "future": ["Uncover the origins and reasons behind the family curse"]
+    },
+    {
+      "element_id": "dark-past-revelation",
+      "name": "Dark Past Revelation",
+      "element_type": "eventuality",
+      "future": ["Discovering a hidden family secret that changes everything"]
+    },
+    {
+      "element_id": "face-her-fears",
+      "name": "Face Her Fears",
+      "element_type": "goal",
+      "future": [
+        "Confront the vengeful spirits and the manifestations of the curse"
+      ]
+    },
+    {
+      "element_id": "gothic-melancholy",
+      "name": "Gothic Melancholy",
+      "element_type": "theme",
+      "present": ["Atmosphere steeped in sadness, loss, and eerie beauty"]
+    }
+  ]
+}

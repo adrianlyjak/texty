@@ -1,110 +1,28 @@
-from texty.gametypes import Eventuality, ProgressLog, TimeNode
-
-zantar = TimeNode(
-    id="",
-    summary="(Game not yet begun)",
-    premise="A futuristic detective mystery in Neo-Angeles about Zantar, a junior detective",
-    # characters=[Character(name="Player", is_player=True)],
-    eventualities=[
-        Eventuality(
-            description="Through whatever means, Zantar climbs the corrupt ranks, becoming chief of police",
-            id="chief-of-police",
-            title="Chief of police",
-            ends_game=True,
-            progress_log=[
-                ProgressLog(
-                    timestep=0,
-                    text="Zantar got the job in the first place because his uncle is on the force",
-                )
-            ],
-        ),
-        Eventuality(
-            description="Finds the oatmeal killer",
-            id="oatmeal-killer",
-            title="Uncovers the identity of the oatmeal serial killer",
-            progress_log=[
-                ProgressLog(
-                    timestep=0,
-                    text="Strange killings have been occurring where residents of neo-angeles are found dead, watching oatmeal commercials on their AR glasses",
-                )
-            ],
-        ),
-        Eventuality(
-            description="Zantar uncovers a massive AI conspiracy controlling Neo-Angeles",
-            title="AI Overlord Exposed",
-            id="ai-overlord-exposed",
-            ends_game=True,
-        ),
-        Eventuality(
-            description="Zantar becomes entangled in an underground cybernetic enhancement ring",
-            title="Cybernetic Underworld",
-            id="cybernetic-underworld",
-        ),
-        Eventuality(
-            description="Zantar's consciousness is uploaded into the city's mainframe",
-            title="Digital Detective",
-            id="digital-detective",
-            ends_game=True,
-            progress_log=[],
-        ),
-        Eventuality(
-            description="Zantar uncovers a plot to replace key city officials with advanced androids",
-            title="Android Infiltration",
-            id="android-infiltration",
-            ends_game=False,
-            progress_log=[
-                ProgressLog(
-                    timestep=0,
-                    text="Zantar has noticed some subtle behavioral changes in high-ranking officials",
-                )
-            ],
-        ),
-        Eventuality(
-            description="Zantar becomes a vigilante, operating outside the law to fight corruption",
-            title="Rogue Justice",
-            id="rogue-justice",
-            ends_game=True,
-            progress_log=[],
-        ),
-    ],
-)
+from posixpath import dirname
+from texty.gametypes import Eventuality, GameElement, ProgressLog, TimeNode
+from texty.prompts import GamePremise
 
 
-lost_expedition = TimeNode(
-    id="",
-    summary="(Game not yet begun)",
-    premise=""""The Lost Expedition": You play as Amelia Parker, a seasoned explorer tasked with locating a missing research team in the heart of the Amazon rainforest. As you navigate dense foliage and encounter strange creatures, you uncover a dark secret that threatens to consume the entire expedition.""",
-    eventualities=[
-        Eventuality(
-            description="Amelia successfully locates the missing research team",
-            id="research-team-found",
-            title="Research Team Found",
-            progress_log=[
-                ProgressLog(
-                    timestep=0,
-                    text="Amelia finally discovers the research team's camp, but it appears abandoned",
-                )
-            ],
-        ),
-        Eventuality(
-            description="Amelia discovers an ancient temple hidden deep within the rainforest",
-            id="ancient-temple-discovered",
-            title="Ancient Temple Discovered",
-        ),
-        Eventuality(
-            description="Xocotl, the ancient deity of the rainforest, awakens and threatens to consume the entire forest in fire",
-            id="xocotl-awakens",
-            title="Xocotl Awakens",
-        ),
-        Eventuality(
-            description="Amelia and the research team are forced to flee the rainforest as it burns around them, many members do not make it out alive",
-            id="rainforest-burns",
-            title="Rainforest Burns",
-            ends_game=True,
-        ),
-    ],
-)
-# '''"The Phantom Manor": In this Gothic tale, you assume the role of Elizabeth Blackwood, a young woman who inherits a cursed mansion from her late uncle. As you explore the eerie halls and encounter vengeful spirits, you must uncover the truth behind the family's dark past before it's too late.'''
+def parse_time_node(json: str) -> str:
+    premise = GamePremise.model_validate_json(json)
+    return TimeNode(
+        id="",
+        summary="(Game not yet begun)",
+        premise=premise.premise,
+        game_elements=premise.game_elements,
+    )
+
+
+def get_seed(name: str) -> TimeNode:
+    with open(dirname(__file__) + f"/seeds/{name}.json") as f:
+        return parse_time_node(f.read())
+
+
+zantar = get_seed("zantar")
+lost_expedition = get_seed("lost_expedition")
+blackwood_manor = get_seed("blackwood_manor")
+time_travelers_dilemma = get_seed("time_travelers_dilemma")
+
 # '''"The Time Traveler's Dilemma": Step into the shoes of Dr. Benjamin Grey, a brilliant scientist who invents a time machine. However, your experiments soon go awry as you inadvertently alter key events in history, leading to catastrophic consequences. Can you set things right before the fabric of reality unravels?'''
 # '''"The Haunting of Hollow Hill": As Emily Everly, a paranormal investigator, you are called to the remote town of Hollow Hill to investigate a series of mysterious disappearances. As you delve into the town's dark history and encounter restless spirits, you must uncover the truth behind the haunting before it claims your own soul.'''
 # '''"The Arctic Obsidian": Join Captain James Mallory on a perilous expedition to the Arctic Circle in search of a legendary gem known as the Arctic Obsidian. As you traverse treacherous ice fields and fend off rival explorers, you must navigate the harsh terrain and ancient curses that guard the precious stone.'''

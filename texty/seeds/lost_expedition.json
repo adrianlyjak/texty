@@ -1,0 +1,47 @@
+{
+  "premise": "\"The Lost Expedition\": You play as Amelia Parker, a seasoned explorer tasked with locating a missing research team in the heart of the Amazon rainforest. As you navigate dense foliage and encounter strange creatures, you uncover a dark secret that threatens to consume the entire expedition.",
+  "game_elements": [
+    {
+      "element_id": "research-team-found",
+      "name": "Find Research Team",
+      "element_type": "eventuality",
+      "past": ["Amelia's research team has gone missing"],
+      "present": [
+        "Amelia finds the research team's camp, but it appears abandoned"
+      ],
+      "future": []
+    },
+    {
+      "element_id": "ancient-temple-discovered",
+      "name": "Ancient Temple Discovered",
+      "element_type": "eventuality",
+      "past": [],
+      "present": [],
+      "future": [
+        "Amelia discovers an ancient temple hidden deep within the rainforest",
+        "Amelia discovers a curse on the temple"
+      ]
+    },
+    {
+      "element_id": "xocotl-awakens",
+      "name": "Xocotl Awakens",
+      "element_type": "eventuality",
+      "past": [],
+      "present": [],
+      "future": [
+        "Xocotl, the ancient deity of the rainforest, awakens and threatens to consume the entire forest in fire",
+        "Xocotl destroys the planet. Game over, you lose"
+      ]
+    },
+    {
+      "element_id": "rainforest-burns",
+      "name": "Rainforest Burns",
+      "element_type": "eventuality",
+      "past": [],
+      "present": [],
+      "future": [
+        "Amelia and the research team are forced to flee the rainforest as it burns around them, many members do not make it out alive. Game over, you lose"
+      ]
+    }
+  ]
+}
