@@ -16,6 +16,7 @@ gradio = "^4.37.2"
 # stupid workaround for outlines/vllm not freezing versions
 numpy = "<2.0.0"
 anthropic = "^0.30.1"
+python-fasthtml = "^0.1.4"
 
 
 [tool.poetry.group.dev.dependencies]

@@ -838,6 +838,38 @@ typer = ">=0.12.3"
 standard = ["fastapi", "uvicorn[standard] (>=0.15.0)"]
 
 [[package]]
+name = "fastcore"
+version = "1.5.51"
+description = "Python supercharged for fastai development"
+optional = false
+python-versions = ">=3.7"
+files = [
+    {file = "fastcore-1.5.51-py3-none-any.whl", hash = "sha256:662d453a8cc917d0afa051f569422945f596345d7c1c7191e89f776ec88ea8f4"},
+    {file = "fastcore-1.5.51.tar.gz", hash = "sha256:b2f3955da06e38a6900edf68bacf45b3465379044ab273844d86b3031e36442e"},
+]
+
+[package.dependencies]
+packaging = "*"
+
+[package.extras]
+dev = ["matplotlib", "nbclassic", "nbdev (>=0.2.39)", "numpy", "pandas", "pillow", "torch"]
+
+[[package]]
+name = "fastlite"
+version = "0.0.7"
+description = "A bit of extra usability for sqlite"
+optional = false
+python-versions = ">=3.10"
+files = [
+    {file = "fastlite-0.0.7-py3-none-any.whl", hash = "sha256:3009389639797b49f5c4b7dc9cd5c6de49450239f28007a3dbfa01db4f5eeb40"},
+    {file = "fastlite-0.0.7.tar.gz", hash = "sha256:c9f7135a73ca89685df70300611435bf80b6889290be7bb111f9c4e28b480ae5"},
+]
+
+[package.dependencies]
+fastcore = ">=1.5.41"
+sqlite-minutils = "*"
+
+[[package]]
 name = "ffmpy"
 version = "0.3.2"
 description = "A simple Python wrapper for ffmpeg"
@@ -1409,6 +1441,17 @@ parallel = ["ipyparallel"]
 qtconsole = ["qtconsole"]
 test = ["packaging", "pickleshare", "pytest", "pytest-asyncio (<0.22)", "testpath"]
 test-extra = ["curio", "ipython[test]", "matplotlib (!=3.2.0)", "nbformat", "numpy (>=1.23)", "pandas", "trio"]
+
+[[package]]
+name = "itsdangerous"
+version = "2.2.0"
+description = "Safely pass data to untrusted environments and back."
+optional = false
+python-versions = ">=3.8"
+files = [
+    {file = "itsdangerous-2.2.0-py3-none-any.whl", hash = "sha256:c6242fc49e35958c8b15141343aa660db5fc54d4f13a1db01a3f5891b98700ef"},
+    {file = "itsdangerous-2.2.0.tar.gz", hash = "sha256:e0050c0b7da1eea53ffaf149c0cfbb5c6e2e2b69c4bef22c81fa6eb73e5f6173"},
+]
 
 [[package]]
 name = "jedi"
@@ -2248,6 +2291,22 @@ files = [
 ]
 
 [[package]]
+name = "oauthlib"
+version = "3.2.2"
+description = "A generic, spec-compliant, thorough implementation of the OAuth request-signing logic"
+optional = false
+python-versions = ">=3.6"
+files = [
+    {file = "oauthlib-3.2.2-py3-none-any.whl", hash = "sha256:8139f29aac13e25d502680e9e19963e83f16838d48a0d71c287fe40e7067fbca"},
+    {file = "oauthlib-3.2.2.tar.gz", hash = "sha256:9859c40929662bec5d64f34d01c99e093149682a3f38915dc0655d5a633dd918"},
+]
+
+[package.extras]
+rsa = ["cryptography (>=3.0.0)"]
+signals = ["blinker (>=1.4.0)"]
+signedtoken = ["cryptography (>=3.0.0)", "pyjwt (>=2.0.0,<3)"]
+
+[[package]]
 name = "openai"
 version = "1.35.7"
 description = "The official Python library for the openai API"
@@ -2892,6 +2951,32 @@ files = [
 cli = ["click (>=5.0)"]
 
 [[package]]
+name = "python-fasthtml"
+version = "0.1.4"
+description = "The fastest way to create an HTML app"
+optional = false
+python-versions = ">=3.10"
+files = [
+    {file = "python_fasthtml-0.1.4-py3-none-any.whl", hash = "sha256:25d3d3417049463805200e3df18d6d984955bef1aea4546e3df9bd5effca0a52"},
+    {file = "python_fasthtml-0.1.4.tar.gz", hash = "sha256:c4c7dbbe926b300d5905cf87b46d5c041419e484f3d6aa2cc066665f9e0a3036"},
+]
+
+[package.dependencies]
+beautifulsoup4 = "*"
+fastcore = ">=1.5.46"
+fastlite = ">=0.0.6"
+httpx = "*"
+itsdangerous = "*"
+oauthlib = "*"
+python-dateutil = "*"
+python-multipart = "*"
+starlette = ">0.33"
+uvicorn = {version = "*", extras = ["standard"]}
+
+[package.extras]
+dev = ["ipython", "lxml"]
+
+[[package]]
 name = "python-multipart"
 version = "0.0.9"
 description = "A streaming multipart parser for Python"
@@ -3388,6 +3473,20 @@ files = [
     {file = "soupsieve-2.5-py3-none-any.whl", hash = "sha256:eaa337ff55a1579b6549dc679565eac1e3d000563bcb1c8ab0d0fefbc0c2cdc7"},
     {file = "soupsieve-2.5.tar.gz", hash = "sha256:5663d5a7b3bfaeee0bc4372e7fc48f9cff4940b3eec54a6451cc5299f1097690"},
 ]
+
+[[package]]
+name = "sqlite-minutils"
+version = "3.36.0.post4"
+description = "A fork of sqlite-utils with CLI etc removed"
+optional = false
+python-versions = "<4,>=3.7"
+files = [
+    {file = "sqlite_minutils-3.36.0.post4-py3-none-any.whl", hash = "sha256:178dabf03221ec8c7a63c04c97bb500d66f8de628d7c941c984b4851eccd901b"},
+    {file = "sqlite_minutils-3.36.0.post4.tar.gz", hash = "sha256:4a44adf3820796e2b0c24b35982c53e687a3a95d7bedbe7859c48cce6616837a"},
+]
+
+[package.dependencies]
+fastcore = "*"
 
 [[package]]
 name = "stack-data"
@@ -4208,4 +4307,4 @@ multidict = ">=4.0"
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.12,<3.13"
-content-hash = "e027181c7e2e7233ffcb9ff6b883b2ace520cb14aaaeabc28bb55d296fab98ee"
+content-hash = "5eccd042265a44dbb760c709c710f284b9f23f7300a0faca74154f539099181d"

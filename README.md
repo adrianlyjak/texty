@@ -37,13 +37,15 @@ LLM_MODEL_SMALL="anthropic/claude-3-5-sonnet-20240620"
 # LLAMA_CPP_JSON_SCHEMA=true # use llama.cpp grammar
 ```
 
-Then run the gradio server
+Then run the html server
 
 ```sh
-poetry run gradio texty/web.py
+poetry run uvicorn main:app --reload
 ```
 
-Files are stored in this directory in texty.db
+Objects are stored in this directory in `texty.db`
+
+
 
 ## Screenshots
 
