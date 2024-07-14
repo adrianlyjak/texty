@@ -135,6 +135,12 @@ def get(scenario_id: str):
                 ),
                 cls="game-content-container",
             ),
+            Div(
+                Div(
+                    id="game-content",
+                ),
+                cls="game-content-container",
+            ),
             Form(
                 Div(
                     game_input_area(),
@@ -142,6 +148,7 @@ def get(scenario_id: str):
                     cls="input-area",
                 ),
                 ws_send="",
+                cls="input-form",
             ),
             hx_ext="ws",
             ws_connect=f"/ws/scenario/{scenario_id}",

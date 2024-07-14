@@ -26,6 +26,15 @@
   width: 100%;
 }
 
+.input-form {
+  position: fixed;
+  bottom: 0;
+  width: 100%;
+  background-color: var(--bg-color);
+  padding: 1rem;
+  box-shadow: 0 -2px 5px rgba(0, 0, 0, 0.1);
+}
+
 .send-button {
   padding: 1rem;
   cursor: pointer;
