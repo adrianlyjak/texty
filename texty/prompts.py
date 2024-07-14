@@ -4,10 +4,8 @@ import outlines
 from pydantic import BaseModel, Field, TypeAdapter
 
 from texty.gametypes import (
-    Eventuality,
     GameElement,
     LogItem,
-    ProgressLog,
     RetiredGameElement,
     TimeNode,
 )

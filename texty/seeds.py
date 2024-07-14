@@ -1,5 +1,5 @@
 from posixpath import dirname
-from texty.gametypes import Eventuality, GameElement, ProgressLog, TimeNode
+from texty.gametypes import TimeNode
 from texty.prompts import GamePremise
 
 

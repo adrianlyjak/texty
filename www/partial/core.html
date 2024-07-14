@@ -1,0 +1,33 @@
+<link rel="stylesheet" href="https://unpkg.com/chota@latest" />
+<script src="https://unpkg.com/htmx-ext-ws@2.0.0/ws.js"></script>
+<style>
+  :root {
+    --color-textAccent: #27764b;
+  }
+
+  body.dark {
+    --bg-color: #000;
+    --bg-secondary-color: #131316;
+    --font-color: #f5f5f5;
+    --color-grey: #ccc;
+    --color-darkGrey: #d2d6dd;
+    --color-lightGrey: #3f4144;
+    --color-textAccent: #87baa8;
+  }
+
+  .header {
+    display: flex;
+    flex-direction: row;
+  }
+  .card {
+    background: var(--bg-secondary-color);
+  }
+</style>
+<script>
+  if (
+    window.matchMedia &&
+    window.matchMedia("(prefers-color-scheme: dark)").matches
+  ) {
+    document.body.classList.add("dark");
+  }
+</script>

@@ -9,10 +9,8 @@ from texty.prompts import (
 )
 
 from texty.gametypes import (
-    Eventuality,
     GameElementUpdate,
     LogItem,
-    ProgressLog,
     TimeNode,
 )
 from texty import database, seeds
@@ -209,39 +207,3 @@ def detect_intent(player_action: str, time_node: TimeNode) -> "IntentDetection":
         ),
         IntentDetection,
     )
-
-
-EventualityList = user_list_adapter = TypeAdapter(Optional[List[Eventuality]])
-
-
-class EventualityTrigger(BaseModel):
-    id: str = Field(description="The eventuality id to trigger")
-    progress_log: str = Field(
-        description="Update about the player's progress or completion towards the eventuality"
-    )
-    completed: bool = Field(
-        description="Set to true if the eventuality is now complete!"
-    )
-    delete: bool = Field(
-        description="Set to true if the eventuality is now unreachable and should be removed"
-    )
-
-
-class EventualityTriggers(BaseModel):
-    triggered: List[EventualityTrigger]
-
-
-# def update_characters(time_node: TimeNode, events: List[LogItem]) -> TimeNode:
-#     """
-#     Update the characters (descriptions, relationships) in the story based on the current state of the world and the player's action
-#     """
-#     # TODO - prompt for the character updates
-#     return time_node
-
-
-# def update_world_details(time_node: TimeNode, events: List[LogItem]) -> TimeNode:
-#     """
-#     Update the world details
-#     """
-#     # TODO - prompt for the world updates
-#     return time_node
