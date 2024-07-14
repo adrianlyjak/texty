@@ -126,15 +126,12 @@ def get():
 @rt("/game/{scenario_id}")
 def get(scenario_id: str):
 
-    return page(
+    corehtml = partial("core.html")
+    return (
+        Title("RNGes.us"),
+        NotStr(corehtml),
         Main(
             Style(partial("css/game.css")),
-            Div(
-                Div(
-                    id="game-content",
-                ),
-                cls="game-content-container",
-            ),
             Div(
                 Div(
                     id="game-content",
