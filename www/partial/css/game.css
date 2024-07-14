@@ -23,7 +23,10 @@
   overflow: hidden;
   gap: 1rem;
   align-items: start;
-  width: 100%;
+  width: calc(100% - 2rem);
+  margin: 0 auto;
+  padding: 0.5rem;
+  box-sizing: border-box;
 }
 
 .input-form {
@@ -31,8 +34,9 @@
   bottom: 0;
   width: 100%;
   background-color: var(--bg-color);
-  padding: 1rem;
+  padding: 0.5rem 1rem;
   box-shadow: 0 -2px 5px rgba(0, 0, 0, 0.1);
+  box-sizing: border-box;
 }
 
 .send-button {
