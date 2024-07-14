@@ -130,8 +130,8 @@ def get(scenario_id: str):
     return (
         Title("RNGes.us"),
         NotStr(corehtml),
+        Style(partial("css/game.css")),
         Main(
-            Style(partial("css/game.css")),
             Div(
                 Div(
                     id="game-content",
@@ -149,6 +149,7 @@ def get(scenario_id: str):
             ),
             hx_ext="ws",
             ws_connect=f"/ws/scenario/{scenario_id}",
+            cls="game-container"
         )
     )
 
