@@ -23,6 +23,7 @@
   overflow: hidden;
   gap: 1rem;
   align-items: start;
+  width: 100%;
 }
 
 .send-button {
@@ -34,6 +35,7 @@
 .grow-wrap {
   /* easy way to plop the elements on top of each other and have them both sized based on the tallest one's height */
   display: grid;
+  width: 100%;
 }
 .grow-wrap::after {
   /* Note the weird space! Needed to preventy jumpy behavior */
