@@ -11,6 +11,7 @@ import os
 from texty import database
 from texty import game
 from texty.gametypes import LogItem
+from texty.navbar import navbar
 
 app = FastHTMLWithLiveReload()
 rt = app.route
