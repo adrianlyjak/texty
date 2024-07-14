@@ -2,7 +2,8 @@
   flex: 1;
   overflow-y: auto;
   font-family: monospace;
-  padding-bottom: 5rem; /* Add padding to ensure content is not hidden behind input area */
+  display: flex;
+  flex-direction: column;
 }
 
 .game-message-game,
@@ -30,15 +31,13 @@
 }
 
 .input-form {
-  position: fixed;
-  bottom: 0;
-  width: 100%;
   background-color: var(--bg-color);
   padding: 0.5rem;
   box-shadow: 0 -2px 5px rgba(0, 0, 0, 0.1);
   box-sizing: border-box;
   display: flex;
   align-items: center;
+  flex-shrink: 0;
 }
 
 .send-button {
@@ -92,4 +91,10 @@ html, body {
   display: flex;
   flex-direction: column;
   height: 100%;
+}
+
+main {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
 }
