@@ -14,12 +14,10 @@ class Settings(BaseSettings):
     openai_json_mode: Optional[bool] = None
     openai_tool_mode: Optional[bool] = None
 
-
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"
         extra = "ignore"
-        
 
 
 settings = Settings()

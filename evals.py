@@ -1,6 +1,7 @@
+import logging
 from inspect_ai import Task, task
 from inspect_ai.dataset import MemoryDataset, Sample
-from inspect_ai.solver import Generate, TaskState, generate, solver
+from inspect_ai.solver import Generate, TaskState, call_tools, generate, solver
 from inspect_ai.model import ChatMessageUser
 from texty.gametypes import TimeNode
 from texty import seeds
@@ -23,7 +24,7 @@ def run_planning(intent: prompts.Intent):
             ),
         )
         state.messages = [msg]
-        state = await generate(state, cache=True)
+        state = await generate(state, cache=False)
         json_obj = extract_json_obj(state.output.completion)
         state.metadata["update"] = json_obj
         original_messages = state.messages
@@ -104,4 +105,65 @@ def eval_define_game():
             run_define_game(),
             generate(cache=True),
         ],
+    )
+
+
+from typing import List, Literal
+from pydantic import BaseModel
+from inspect_ai.solver import tool, use_tools
+from inspect_ai import task, Task
+
+
+class Word(BaseModel):
+    type: Literal["adjective", "noun"]
+    word: str
+
+
+@tool(
+    prompt="A defined schema for the structured extraction of words from the input",
+    name="extract_words",
+)
+def my_tool():
+    async def extract(words: list) -> str:
+        """
+        Accepts the extracted nouns and adjectives from the sentence
+
+        Args:
+          words: the extract json object words
+        Returns: the same structured output passed, for consumption by the application
+        """
+        print("got input extracted", words)
+        return words
+
+    return extract
+
+
+@solver
+def generate_words():
+    async def solve(state: TaskState, generate: Generate):
+        state.tool_choice = "any"
+        state.tools = [my_tool()]
+        print(my_tool())
+        # setup logger for this source file
+        logger = logging.getLogger(__name__)
+
+        # log each time we see a web query
+        logger.info(f"web query:{my_tool()}")
+        await generate(state, tool_calls="none", cache=False)
+        return state
+
+    return solve
+
+
+@task
+def eval_word_extract():
+    return Task(
+        dataset=MemoryDataset(
+            [
+                Sample(
+                    input="Extract the nouns and adjectives from the following sentence.\nSentence:\nThe quick brown fox jumped over the lazy dog."
+                )
+            ]
+        ),
+        plan=[generate_words()],
     )

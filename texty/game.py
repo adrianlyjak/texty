@@ -1,9 +1,12 @@
-from typing import Iterator, List, Literal, Optional, Set, Tuple
+from typing import AsyncGenerator, Iterator, List, Literal, Optional, Set, Tuple
 import uuid
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field, TypeAdapter
 
 from texty import prompts
+from texty._async import async_gen_to_blocking_iterator
 from texty.prompts import (
+    GamePremise,
     Intent,
     IntentDetection,
 )
@@ -33,33 +36,64 @@ class Game:
     def __init__(self, scenario_id: str):
         self.scenario_id = scenario_id
 
-    def start_if_not_started(
+    @staticmethod
+    async def from_prompt(premise: str) -> TimeNode:
+        prompt = prompts.prompt_define_game(premise)
+        response = await get_client("large").json(prompt, GamePremise)
+        id = str(uuid.uuid4())
+        time_node = TimeNode(
+            id=id,
+            summary="(Game not yet begun)",
+            premise=response.premise,
+            game_elements=response.game_elements,
+        )
+        database.insert_time_node(time_node)
+
+        return time_node
+
+    @staticmethod
+    def from_seed(seed: str) -> TimeNode:
+        time_node = seeds.get_seed(seed)
+        id = str(uuid.uuid4())
+        time_node = time_node.model_copy(update={"id": id}, deep=True)
+        database.insert_time_node(time_node)
+        return time_node
+
+    async def start_if_not_started_async(
         self, seed: TimeNode = seeds.zantar
-    ) -> Iterator["AdvanceTimeProgress"]:
+    ) -> AsyncGenerator["AdvanceTimeProgress", None]:
         """returns true if the game was started, false if it was already running"""
         self.node = database.get_active_node(scenario_id=self.scenario_id)
         if not self.node:
-            node = seed.model_copy(update={"id": self.scenario_id})
-            for event in advance_time(
+            self.node = seed.model_copy(update={"id": self.scenario_id})
+        if not self.node.event_log:
+            updated = None
+            async for event in advance_time_async(
                 "(the player has entered. Set the scene for them, imagine a starting scene, and introduce the character and the story)",
-                node,
+                self.node,
                 is_initialization=True,
             ):
                 if type(event) == StatusUpdate and event.updated_time_node:
-                    node = event.updated_time_node
+                    updated = event.updated_time_node
                 yield event
-            self.last_node = self.node
-            self.node = node
+            if updated:
+                self.last_node = self.node
+            self.node = updated or self.node
             database.insert_time_node(self.node)
 
-    def step(
+    def start_if_not_started(
+        self, seed: TimeNode = seeds.zantar
+    ) -> Iterator["AdvanceTimeProgress"]:
+        return async_gen_to_blocking_iterator(self.start_if_not_started_async, seed)
+
+    async def step_async(
         self,
         player_action: str,
-    ) -> Iterator["AdvanceTimeProgress"]:
+    ) -> AsyncGenerator["AdvanceTimeProgress", None]:
         assert self.node is not None
         previous = self.node
         updated = None
-        for event in advance_time(player_action, self.node):
+        async for event in advance_time_async(player_action, self.node):
             if type(event) == StatusUpdate and event.updated_time_node:
                 updated = event.updated_time_node
                 self.last_node = previous
@@ -68,6 +102,12 @@ class Game:
             yield event
         if updated is None:
             logger.warn("something's wrong, no node updated")
+
+    def step(
+        self,
+        player_action: str,
+    ) -> Iterator["AdvanceTimeProgress"]:
+        return async_gen_to_blocking_iterator(self.step_async, player_action)
 
     def undo(self) -> bool:
         """Returns true if the undo was successful, false if it was not possible"""
@@ -97,9 +137,9 @@ class TextResponse(BaseModel):
 AdvanceTimeProgress = StatusUpdate | TextResponse
 
 
-def advance_time(
+async def advance_time_async(
     player_action: str, time_node: TimeNode, is_initialization: bool = False
-) -> Iterator[AdvanceTimeProgress]:
+) -> AsyncGenerator[AdvanceTimeProgress, None]:
     """
     An iteration of the game loop
     """
@@ -111,7 +151,7 @@ def advance_time(
     detected_intent: Optional[IntentDetection] = None
     if not is_initialization:
         yield StatusUpdate(status="loading-intent")
-        detected_intent = detect_intent(player_action, time_node)
+        detected_intent = await detect_intent(player_action, time_node)
         yield StatusUpdate(
             status="loaded-intent",
             debug=f"{detected_intent.intent}: {detected_intent.thought}",
@@ -154,7 +194,7 @@ def advance_time(
             active_game_events_json=prompts.dump_game_elements(time_node.game_elements),
         )
         yield StatusUpdate(status="running-simulation")
-        update = get_client("large").json(plan_prompt, GameElementUpdate)
+        update = await get_client("large").json(plan_prompt, GameElementUpdate)
         yield StatusUpdate(status="ran-simulation")
         yield StatusUpdate(status="generate-response")
         prompt = prompts.prompt_respond_to_action(
@@ -166,7 +206,7 @@ def advance_time(
             events_json=prompts.dump_events(time_node),
         )
         response = ""
-        for chunk in get_client("large").stream(prompt):
+        async for chunk in get_client("large").stream(prompt):
             response += chunk
             yield TextResponse(full_text=response, delta=chunk)
         yield StatusUpdate(status="generated-response")
@@ -184,7 +224,17 @@ def advance_time(
         events[1:] if is_initialization else events
     )
     yield StatusUpdate(status="done", updated_time_node=time_node)
-    return time_node
+
+
+def advance_time(
+    player_action: str, time_node: TimeNode, is_initialization: bool = False
+) -> Iterator[AdvanceTimeProgress]:
+    """
+    An iteration of the game loop
+    """
+    return async_gen_to_blocking_iterator(
+        advance_time_async, player_action, time_node, is_initialization
+    )
 
 
 ##################################################
@@ -192,14 +242,14 @@ def advance_time(
 ##################################################
 
 
-def detect_intent(player_action: str, time_node: TimeNode) -> "IntentDetection":
+async def detect_intent(player_action: str, time_node: TimeNode) -> "IntentDetection":
     """
     Given a player response, detect whether its a executable action or an exploratory request.
     If its an exploratory request, fill out the area/world details, and re-request the user for action
     """
     # TODO: consider allowing introspection as part of inspect (or its own intent?). Consider whether dialog should be its own intent.
 
-    return get_client("large").json(
+    return await get_client("large").json(
         prompts.prompt_detect_intent(
             player_action,
             time_node.premise,

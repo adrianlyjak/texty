@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from functools import lru_cache
 from pydantic import BaseModel
 from typing import (
+    AsyncGenerator,
     Iterator,
     Literal,
     Protocol,
@@ -46,9 +47,9 @@ T = TypeVar("T", bound=BaseModel)
 
 
 class LLMModel(Protocol):
-    def text(self, prompt: str) -> str: ...
-    def stream(self, prompt: str) -> Iterator[str]: ...
-    def json(self, prompt: str, schema: Type[T]) -> T: ...
+    async def text(self, prompt: str) -> str: ...
+    async def stream(self, prompt: str) -> Iterator[str]: ...
+    async def json(self, prompt: str, schema: Type[T]) -> T: ...
 
 
 @dataclass
@@ -62,28 +63,28 @@ class OpenAIModel(LLMModel):
         self.client = get_openai()
         self.config = config
 
-    def text(self, prompt: str) -> str:
-        response: ChatCompletion = self.client.chat.completions.create(
+    async def text(self, prompt: str) -> str:
+        response: ChatCompletion = await self.client.chat.completions.create(
             messages=[{"role": "user", "content": prompt}],
             model=self.config.model,
             temperature=self.config.temperature,
         )
         return response.choices[0].message.content
 
-    def stream(self, prompt: str) -> Iterator[str]:
+    async def stream(self, prompt: str) -> AsyncGenerator[str, None]:
         response: Stream[ChatCompletionChunk] = self.client.chat.completions.create(
             messages=[{"role": "user", "content": prompt}],
             stream=True,
             model=self.config.model,
             temperature=self.config.temperature,
         )
-        for chunk in response:
+        async for chunk in response:
             if chunk.choices[0].finish_reason is not None:
                 break
             else:
                 yield chunk.choices[0].delta.content
 
-    def json(self, prompt: str, schema: Type[T]) -> T:
+    async def json(self, prompt: str, schema: Type[T]) -> T:
         kwargs = {}
         if settings.llama_cpp_json_schema:
             kwargs["extra_body"] = {"json_schema": schema.model_json_schema()}
@@ -101,7 +102,7 @@ class OpenAIModel(LLMModel):
         else:
             kwargs["response_format"] = {"type": "json_object"}
 
-        response: ChatCompletion = self.client.chat.completions.create(
+        response: ChatCompletion = await self.client.chat.completions.create(
             messages=[{"role": "user", "content": prompt}],
             model=self.config.model,
             temperature=self.config.temperature,
@@ -125,8 +126,8 @@ class AnthropicModel(LLMModel):
         self.client = get_anthropic()
         self.config = config
 
-    def text(self, prompt: str) -> str:
-        response: AnthropicMessage = self.client.messages.create(
+    async def text(self, prompt: str) -> str:
+        response: AnthropicMessage = await self.client.messages.create(
             messages=[{"content": prompt, "role": "user"}],
             model=self.config.model,
             temperature=self.config.temperature,
@@ -134,19 +135,19 @@ class AnthropicModel(LLMModel):
         )
         return response.content[0].text
 
-    def stream(self, prompt: str) -> Iterator[str]:
-        with self.client.messages.stream(
+    async def stream(self, prompt: str) -> AsyncGenerator[str, None]:
+        async with self.client.messages.stream(
             messages=[{"content": prompt, "role": "user"}],
             model=self.config.model,
             temperature=self.config.temperature,
             max_tokens=4096,
         ) as stream:
             stream: anthropic.MessageStream = stream
-            for text in stream.text_stream:
+            async for text in stream.text_stream:
                 yield text
 
-    def json(self, prompt: str, schema: Type[T]) -> T:
-        response: AnthropicMessage = self.client.messages.create(
+    async def json(self, prompt: str, schema: Type[T]) -> T:
+        response: AnthropicMessage = await self.client.messages.create(
             messages=[{"content": prompt, "role": "user"}],
             tools=[
                 {
@@ -166,7 +167,7 @@ class AnthropicModel(LLMModel):
 @lru_cache(maxsize=None)
 def get_openai() -> OpenAI:
     client = httpx.Client()
-    return OpenAI(
+    return AsyncOpenAI(
         api_key=settings.openai_api_key,
         base_url=settings.openai_base_url,
         http_client=client,
@@ -175,4 +176,4 @@ def get_openai() -> OpenAI:
 
 @lru_cache(maxsize=None)
 def get_anthropic() -> anthropic.Client:
-    return anthropic.Client(api_key=settings.anthropic_api_key)
+    return anthropic.AsyncClient(api_key=settings.anthropic_api_key)

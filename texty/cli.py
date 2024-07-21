@@ -30,7 +30,10 @@ def run_scenario(scenario_id: str, seed: TimeNode = seeds.zantar) -> TimeNode:
             if not any and if_empty:
                 panel.update(if_empty)
 
-    print_game_response(game.start_if_not_started(seed=seed), if_empty="Loaded game. Run '/history' to see the game history")
+    print_game_response(
+        game.start_if_not_started(seed=seed),
+        if_empty="Loaded game. Run '/history' to see the game history",
+    )
 
     try:
         while True:

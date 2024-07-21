@@ -1,5 +1,6 @@
 from fasthtml.common import Nav, Div, A, NotStr, H1
 
+
 def navbar() -> Nav:
     return Nav(
         Div(

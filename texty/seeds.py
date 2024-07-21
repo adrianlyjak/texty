@@ -1,4 +1,6 @@
+import os
 from posixpath import dirname
+from typing import List
 from texty.gametypes import TimeNode
 from texty.prompts import GamePremise
 
@@ -16,6 +18,19 @@ def parse_time_node(json: str) -> str:
 def get_seed(name: str) -> TimeNode:
     with open(dirname(__file__) + f"/seeds/{name}.json") as f:
         return parse_time_node(f.read())
+
+
+def list_seeds() -> List[str]:
+    target_dir = dirname(__file__) + "/seeds/"
+    files = os.listdir(target_dir)
+    print("files=", files)
+    return sorted(
+        [
+            file.removesuffix(".json")
+            for file in files
+            if file.endswith(".json") and os.path.isfile(target_dir + file)
+        ]
+    )
 
 
 zantar = get_seed("zantar")
