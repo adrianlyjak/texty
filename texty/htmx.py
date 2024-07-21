@@ -9,6 +9,7 @@ import os
 from texty import database, seeds
 from texty import game
 from texty.gametypes import LogItem, TimeNode
+import jinja2
 
 app = FastHTMLWithLiveReload()
 rt = app.route
@@ -111,11 +112,17 @@ def get():
     )
 
 
+new_story_form = jinja2.Template(partial("new-story-form.jinja"))
+
+
 @rt("/games/create")
 def get():
     corehtml = partial("core.html")
-    all_seeds = [(seed, seeds.get_seed(seed)) for seed in seeds.list_seeds()]
-    form = partial("new-story-form.html")
+    options = [
+        {"id": seed, "summary": f"{seed}: {seeds.get_seed(seed).premise}"}
+        for seed in seeds.list_seeds()
+    ]
+    form = new_story_form.render(options=options)
     return (
         Title("RNG"),
         NotStr(corehtml),

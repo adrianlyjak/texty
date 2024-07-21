@@ -16,24 +16,40 @@
   rel="stylesheet"
 />
 <style>
-  :root,
-  [data-bs-theme="light"] {
+  :root {
+    /* app variables */
     --color-textAccent1: #27764b;
     --color-textAccent2: #45acec;
+
+    /** bootstrap variables **/
+    --bs-primary: #ff6347; /* Tomato */
+    --bs-secondary: #ffa500; /* Orange */
+    --bs-accent: #9370db; /* Medium Purple */
+    --bs-text: #000000; /* Black */
+    --bs-font-monospace: "Courier New", Courier, monospace;
   }
 
   [data-bs-theme="dark"] {
+    /* app variables */
     --color-textAccent1: #87baa8;
     --color-textAccent2: #45acec;
+
+    /** bootstrap variables **/
+    --bs-primary: #ff6347; /* Tomato */
+    --bs-secondary: #ffa500; /* Orange */
+    --bs-accent: #9370db; /* Medium Purple */
+    --bs-text: #ffffff; /* White */
+    --bs-font-monospace: "Courier New", Courier, monospace;
   }
 
   .header {
     display: flex;
     flex-direction: row;
+    padding: 0.5rem 0; /* Add some padding above and below */
   }
   .header h1 {
     margin: 0;
-    font-size: 2.5rem;
+    font-size: 2rem;
     color: var(--color-textAccent1);
   }
   .header .logo-container {
@@ -41,17 +57,13 @@
     align-items: center;
     justify-content: center;
     padding-right: 0.5rem;
-    /* padding-bottom: 1rem; */
   }
   .header .logo-link svg {
     width: 40px;
     height: 40px;
   }
   .header .logo-link:hover svg polygon {
-    fill: var(--color-grey);
-  }
-  .card {
-    background: var(--bg-secondary-color);
+    fill: var(--bs-secondary-color);
   }
 </style>
 <script>
