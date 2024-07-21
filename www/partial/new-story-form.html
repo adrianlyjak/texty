@@ -11,16 +11,31 @@
         <form
           hx-post="/games/create"
           hx-target="#form-alerts"
-          class="d-flex flex-column"
+          class="d-flex flex-column justify-content-between flex-grow-1"
         >
           <div class="mb-3">
             <label for="template" class="form-label">Template</label>
             <select class="form-select" name="template" id="template">
-              <option value="fantasy-adventure">Fantasy Adventure: A brave hero embarks on a perilous quest to save the kingdom.</option>
-              <option value="sci-fi-exploration">Sci-Fi Exploration: A crew of space explorers discovers a mysterious alien artifact.</option>
-              <option value="detective-mystery">Detective Mystery: A brilliant detective must solve a baffling murder case.</option>
-              <option value="post-apocalyptic-survival">Post-Apocalyptic Survival: Survivors struggle to rebuild society after a global catastrophe.</option>
-              <option value="historical-drama">Historical Drama: A family navigates the challenges of a pivotal moment in history.</option>
+              <option value="fantasy-adventure">
+                Fantasy Adventure: A brave hero embarks on a perilous quest to
+                save the kingdom.
+              </option>
+              <option value="sci-fi-exploration">
+                Sci-Fi Exploration: A crew of space explorers discovers a
+                mysterious alien artifact.
+              </option>
+              <option value="detective-mystery">
+                Detective Mystery: A brilliant detective must solve a baffling
+                murder case.
+              </option>
+              <option value="post-apocalyptic-survival">
+                Post-Apocalyptic Survival: Survivors struggle to rebuild society
+                after a global catastrophe.
+              </option>
+              <option value="historical-drama">
+                Historical Drama: A family navigates the challenges of a pivotal
+                moment in history.
+              </option>
             </select>
           </div>
           <button type="submit" class="btn btn-lg btn-primary">Start</button>
