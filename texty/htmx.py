@@ -55,36 +55,9 @@ def get(request: starlette.requests.Request):
 
     blurcss = partial("css/splash-header.css")
 
-    games = database.list_games()
-
     return page(
         Style(blurcss),
-        Main(
-            Div(
-                Div(
-                    Img(src="static/img/rngesus13.jpg"),
-                    cls="header-hero-img d-flex justify-content-center col-sm",
-                ),
-                Div(
-                    A(
-                        "Load Game",
-                        href="/games",
-                        name="load-game",
-                    ),
-                    A(
-                        "New Game",
-                        href="/games/create",
-                        name="new-game",
-                        role="button",
-                        cls="primary mx-3",
-                    ),
-                    style="min-height: 6rem",
-                    cls="col-sm order-first-sm d-flex flex-row justify-content-center align-items-center",
-                ),
-                cls="row",
-            ),
-            cls="container",
-        ),
+        NotStr(partial("homepage.html")),
     )
 
 

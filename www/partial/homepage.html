@@ -1,13 +1,15 @@
-<div class="container">
-  <div class="row">
-    <div class="col-12">
-      <div class="header-hero-img">
-        <img src="/static/img/rngesus13.jpg" alt="Hero Image">
-        <div class="button-container">
-          <button class="btn btn-primary" hx-post="/start-game" hx-target="#game-container">Start Game</button>
-          <button class="btn btn-secondary" hx-post="/load-game" hx-target="#game-container">Load Game</button>
-        </div>
+<main>
+  <div class="container">
+    <div class="row">
+      <div class="header-hero-img d-flex justify-content-center col-md">
+        <img src="/static/img/rngesus13.jpg" alt="Hero Image" />
+      </div>
+      <div
+        class="col-md order-md-first d-flex flex-row justify-content-center align-items-center"
+      >
+        <a href="/games/">Load Game</a>
+        <a role="button" class="mx-3" href="/games/create">Start Game</a>
       </div>
     </div>
   </div>
-</div>
+</main>
