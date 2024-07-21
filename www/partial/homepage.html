@@ -1,7 +1,13 @@
-<div class="header-hero-img">
-  <img src="/static/img/rngesus13.jpg" alt="Hero Image">
-  <div class="button-container">
-    <button class="btn btn-primary" onclick="startGame()">Start Game</button>
-    <button class="btn btn-secondary" onclick="loadGame()">Load Game</button>
+<div class="container">
+  <div class="row">
+    <div class="col-12">
+      <div class="header-hero-img">
+        <img src="/static/img/rngesus13.jpg" alt="Hero Image">
+        <div class="button-container">
+          <button class="btn btn-primary" hx-post="/start-game" hx-target="#game-container">Start Game</button>
+          <button class="btn btn-secondary" hx-post="/load-game" hx-target="#game-container">Load Game</button>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
