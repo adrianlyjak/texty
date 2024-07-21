@@ -37,7 +37,7 @@ def navbar() -> Nav:
             cls="logo-container",
         ),
         H1("RNGes.us"),
-        cls="header",
+        cls="container",
     )
 
 
@@ -74,11 +74,11 @@ def get(request: starlette.requests.Request):
                     "New Game",
                     href="/games/create",
                     name="new-game",
-                    cls="btn btn-primary",
+                    cls="primary",
                 ),
-                cls="col button-container",
+                cls="container",
             ),
-            cls="row reverse",
+            cls="grid",
         ),
     )
 
@@ -195,7 +195,7 @@ def get(scenario_id: str):
             Form(
                 Div(
                     game_input_area(),
-                    Button("Send", cls="send-button btn btn-primary", type="submit"),
+                    Button("Send", cls="primary", type="submit"),
                     cls="input-area",
                 ),
                 ws_send="",
