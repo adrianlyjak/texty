@@ -15,77 +15,13 @@
         >
           <div class="mb-3">
             <label for="template" class="form-label">Template</label>
-            <div class="form-text">
-              <ul class="list-unstyled">
-                <li>
-                  <input
-                    type="radio"
-                    name="template"
-                    id="fantasy-adventure"
-                    value="fantasy-adventure"
-                    class="form-check-input"
-                  />
-                  <label for="fantasy-adventure" class="form-check-label"
-                    >Fantasy Adventure: A brave hero embarks on a perilous quest
-                    to save the kingdom.</label
-                  >
-                </li>
-                <li>
-                  <input
-                    type="radio"
-                    name="template"
-                    id="sci-fi-exploration"
-                    value="sci-fi-exploration"
-                    class="form-check-input"
-                  />
-                  <label for="sci-fi-exploration" class="form-check-label"
-                    >Sci-Fi Exploration: A crew of space explorers discovers a
-                    mysterious alien artifact.</label
-                  >
-                </li>
-                <li>
-                  <input
-                    type="radio"
-                    name="template"
-                    id="detective-mystery"
-                    value="detective-mystery"
-                    class="form-check-input"
-                  />
-                  <label for="detective-mystery" class="form-check-label"
-                    >Detective Mystery: A brilliant detective must solve a
-                    baffling murder case.</label
-                  >
-                </li>
-                <li>
-                  <input
-                    type="radio"
-                    name="template"
-                    id="post-apocalyptic-survival"
-                    value="post-apocalyptic-survival"
-                    class="form-check-input"
-                  />
-                  <label
-                    for="post-apocalyptic-survival"
-                    class="form-check-label"
-                    >Post-Apocalyptic Survival: Survivors struggle to rebuild
-                    society after a global catastrophe.</label
-                  >
-                </li>
-                <li>
-                  <input
-                    type="radio"
-                    name="template"
-                    id="historical-drama"
-                    value="historical-drama"
-                    class="form-check-input"
-                  />
-                  <label for="historical-drama" class="form-check-label"
-                    >Historical Drama: A family navigates the challenges of a
-                    pivotal moment in history.</label
-                  >
-                </li>
-              </ul>
-            </div>
+            <select class="form-select" name="template" id="template">
+              <option value="fantasy-adventure">Fantasy Adventure: A brave hero embarks on a perilous quest to save the kingdom.</option>
+              <option value="sci-fi-exploration">Sci-Fi Exploration: A crew of space explorers discovers a mysterious alien artifact.</option>
+              <option value="detective-mystery">Detective Mystery: A brilliant detective must solve a baffling murder case.</option>
+              <option value="post-apocalyptic-survival">Post-Apocalyptic Survival: Survivors struggle to rebuild society after a global catastrophe.</option>
+              <option value="historical-drama">Historical Drama: A family navigates the challenges of a pivotal moment in history.</option>
+            </select>
           </div>
           <button type="submit" class="btn btn-lg btn-primary">Start</button>
         </form>
