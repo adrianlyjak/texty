@@ -72,11 +72,13 @@ class OpenAIModel(LLMModel):
         return response.choices[0].message.content
 
     async def stream(self, prompt: str) -> AsyncGenerator[str, None]:
-        response: Stream[ChatCompletionChunk] = self.client.chat.completions.create(
-            messages=[{"role": "user", "content": prompt}],
-            stream=True,
-            model=self.config.model,
-            temperature=self.config.temperature,
+        response: Stream[ChatCompletionChunk] = (
+            await self.client.chat.completions.create(
+                messages=[{"role": "user", "content": prompt}],
+                stream=True,
+                model=self.config.model,
+                temperature=self.config.temperature,
+            )
         )
         async for chunk in response:
             if chunk.choices[0].finish_reason is not None:
@@ -166,7 +168,7 @@ class AnthropicModel(LLMModel):
 
 @lru_cache(maxsize=None)
 def get_openai() -> OpenAI:
-    client = httpx.Client()
+    client = httpx.AsyncClient()
     return AsyncOpenAI(
         api_key=settings.openai_api_key,
         base_url=settings.openai_base_url,

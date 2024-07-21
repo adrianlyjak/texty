@@ -73,7 +73,7 @@ def get(request: starlette.requests.Request):
                     "New Game",
                     href="/games/create",
                     name="new-game",
-                    cls="button primary",
+                    cls="btn btn-primary",
                 ),
                 cls="col button-container",
             ),
@@ -115,39 +115,13 @@ def get():
 def get():
     corehtml = partial("core.html")
     all_seeds = [(seed, seeds.get_seed(seed)) for seed in seeds.list_seeds()]
+    form = partial("new-story-form.html")
     return (
         Title("RNG"),
         NotStr(corehtml),
         Main(
             navbar(),
-            Section(id="form-alerts"),
-            Section(
-                H4("Select a Template"),
-                Form(
-                    Label("Template", name="template"),
-                    Select(
-                        *[
-                            Option(seed_name + ": " + seed.premise, value=seed_name)
-                            for seed_name, seed in all_seeds
-                        ],
-                        name="template",
-                    ),
-                    Button("Start", cls="send-button button primary", type="submit"),
-                    hx_post="/games/create",
-                ),
-            ),
-            Section(
-                H4("Or Create Your Own"),
-                Form(
-                    Textarea(
-                        name="prompt",
-                        placeholder="Describe the game",
-                    ),
-                    Button("Start", cls="send-button button primary", type="submit"),
-                    hx_post="/games/create",
-                    hx_target="#form-alerts",
-                ),
-            ),
+            NotStr(form),
             cls="container",
         ),
     )
@@ -181,13 +155,14 @@ let lastUpdate = 0
 document.addEventListener("htmx:wsAfterMessage", e => {
     const now = Date.now().valueOf();
     const passed = now - lastUpdate;
-    lastUpdate = now;
     const messagesDiv = document.querySelector(".game-content-container");
     const diff = messagesDiv.scrollHeight - messagesDiv.scrollTop - messagesDiv.clientHeight;
-    if (diff < 200 || passed > 1000) {
-        messagesDiv.scrollTop = messagesDiv.scrollHeight - messagesDiv.clientHeight ;
+    if (diff < 200 || passed > 1000 || lastUpdate === 0) {
+        setTimeout(() => {
+            messagesDiv.scrollTop = messagesDiv.scrollHeight - messagesDiv.clientHeight;
+        }, 0)
     }
-
+    lastUpdate = now;
 })
 """
 
@@ -213,11 +188,11 @@ def get(scenario_id: str):
             Form(
                 Div(
                     game_input_area(),
-                    Button("Send", cls="send-button button primary", type="submit"),
+                    Button("Send", cls="send-button btn btn-primary", type="submit"),
                     cls="input-area",
                 ),
                 ws_send="",
-                hx_trigger="keyup[keyCode==13], submit",
+                hx_trigger="keyup[!shiftKey&&key=='Enter'], submit",
                 cls="input-form",
                 id="game-input-form",
             ),
@@ -257,11 +232,15 @@ def game_message(role: str, content: str, id: Optional[str] = None) -> Div:
     return Div(*nodes, cls=f"game-message-{role}", id=id)
 
 
+def icon(type: str) -> I:
+    return I(Script("lucide.createIcons();"), data_lucide=type)
+
+
 async def websocket_handler(socket: WebSocket):
     scenario_id = socket.url.path.removeprefix("/ws/scenario/")
 
     async def send_msg(role: str, msg: str, id: Optional[str] = None) -> None:
-        """Adds a single message"""
+        """Adds a single message with the specified role and content to the chat history"""
         await socket.send_text(
             to_xml(
                 Div(
@@ -286,33 +265,96 @@ async def websocket_handler(socket: WebSocket):
                 nodes.append(Br())
         return nodes
 
-    async def stream_msg(role: str, generator: AsyncGenerator[str, None]) -> None:
-        """streams a new single message"""
+    async def stream_msg(
+        role: str, generator: AsyncGenerator[game.AdvanceTimeProgress, None]
+    ) -> None:
+        """streams an in progress message from a game interaction. Shows progress indicators and adds an intermediary system messages"""
         id = "msg-" + str(uuid.uuid4())
+        # prepare elements for updates
+        await send_msg("system", "", id=f"{id}-system")
         await send_msg(role, "", id=id)
+        await socket.send_text(
+            to_xml(Div(Div(id=f"{id}-progress"), id=id, hx_swap_oob="afterstart"))
+        )
         buff = ""
         async for msg in generator:
-            buff += msg
-            last_index = buff.rindex(" ") if " " in buff else 0
-            to_send = buff[:last_index]
-            buff = buff[last_index:]
-            nodes = split_with_line_breaks(to_send)
-            await socket.send_text(to_xml(Div(*nodes, id=id, hx_swap_oob="beforeend")))
+            match msg:
+                case game.TextResponse():
+                    # if naively forwarding messages on to htmx, it adds a new line, so tokens for partial words end up getting spaces injected between them.
+                    # So only send update messages that are divided by spaces
+                    buff += msg.delta
+                    last_index = buff.rindex(" ") if " " in buff else 0
+                    to_send = buff[:last_index]
+                    buff = buff[last_index:]
+                    nodes = split_with_line_breaks(to_send)
+                    await socket.send_text(
+                        to_xml(Div(*nodes, id=id, hx_swap_oob="beforeend"))
+                    )
+                case game.DiceRoll():
+                    percent = f"{(msg.chance_success * 100):.2f}".rstrip("0").rstrip(
+                        "."
+                    )
+                    content = []
+                    if msg.did_succeed == True:
+                        content = [
+                            f"{percent}% chance of success",
+                            Div("succeeded!", cls="tag is-small bg-success"),
+                        ]
+                    elif msg.did_succeed == False:
+                        content = [
+                            f"{percent}% chance of success",
+                            Div("failed!", cls="tag is-small bg-error"),
+                        ]
+                    else:
+                        content = [
+                            f"{percent}% chance of success",
+                            Div("...", cls="tag is-small bg-warning"),
+                        ]
+                    await socket.send_text(
+                        to_xml(
+                            Div(
+                                Div(icon("dices"), *content),
+                                id=f"{id}-system",
+                                cls="game-message-system",
+                            )
+                        )
+                    )
+                case game.TimeNodeUpdate():
+                    pass
+                case game.ProgressUpdate():
+                    if msg.progress == 0:
+                        await socket.send_text(
+                            to_xml(
+                                Div(
+                                    Div(
+                                        f"{msg.type}: {msg.progress}",
+                                        id=f"{id}-progress-{msg.type}",
+                                    ),
+                                    id=f"{id}-progress",
+                                    hx_swap_oob="beforeend",
+                                )
+                            )
+                        )
+                    else:
+                        await socket.send_text(
+                            to_xml(
+                                Div(
+                                    f"{msg.type}: {msg.progress}",
+                                    id=f"{id}-progress-{msg.type}",
+                                )
+                            )
+                        )
+
         if buff:
             nodes = split_with_line_breaks(buff)
             await socket.send_text(to_xml(Div(*nodes, id=id, hx_swap_oob="beforeend")))
+        socket.send_text(to_xml(Div(id=f"{id}-progress")))
 
     try:
         await socket.accept()
         scenario = game.Game(scenario_id=scenario_id)
-        did_any = False
 
-        async def initialize():
-            async for event in scenario.start_if_not_started_async():
-                if type(event) == game.TextResponse:
-                    yield event.delta
-
-        await stream_msg("game", initialize())
+        await stream_msg("game", scenario.start_if_not_started_async())
         await set_messages(
             [evt for evt in scenario.node.event_log if evt.role != "internal"]
         )
@@ -336,13 +378,7 @@ async def websocket_handler(socket: WebSocket):
                     await send_msg("system", "Undo failed")
             elif txt:
 
-                async def gen() -> AsyncGenerator[str, None]:
-                    async for event in scenario.step_async(txt):
-                        match event:
-                            case game.TextResponse() as t:
-                                yield t.delta
-
-                await stream_msg("game", gen())
+                await stream_msg("game", scenario.step_async(txt))
 
     except WebSocketDisconnect as e:
         pass

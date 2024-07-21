@@ -149,39 +149,94 @@ def prompt_detect_intent(
     player_action: str,
     premise: str,
     game_elements: str,
+    game_log: str,
     preamble: str = game_system_prompt(),
 ):
     """
     {{preamble}}
 
-    ## Context
-
-    The premise of the game is:
-    {{premise}}
-
-    The current state of the world is:
-    {{game_elements}}
-
-    The player has just entered the following input:
-    {{player_action}}
-
     ## Instructions
 
     You are now detecting the intent of the player input. The intent is one of "act", "inspect", or "other".
 
-    "inspect": The player is trying to interact with the game system, asking a question about the game, or getting details about the observable game state. Basically any question or request of the game world. Look for keywords like: how, what, why, look, inspect, where, read, ask). In response, the game will provide information about the game, doing some basic extrapolation about what would be realistic to the scenario, without affecting change or time advancing (e.g. no travel occurs, just auditory and visual descriptions of the world). The player may only interact with his immediate environment, walking short distances, for example around a small room. This is the most common type of request.
+    "inspect": The player is trying to interact inquisitively with the game system: For example asking a question about the game, or getting details about the observable game state. Look for keywords like: how, what, why, look, inspect, where, read, ask. In response, the game will provide information about the game, doing some basic extrapolation about what would be realistic to the scenario, without affecting change or time advancing (e.g. no travel occurs, just auditory and visual descriptions of the world). The player may only interact with their immediate environment, for example around a small room. This is the most common type of request.
     "act": The player is executing a change in the world and thereby has consequences. Actions move the game forward, inherently have a chance of failure that varies depending on the action, and have consequences. This should only be selected if the Player Character could conceivably achieve this action. Action oriented things like opening, calling, walking, running, yelling, and so on. In some instances, specific non-action is considered an action, for example allowing something to happen that is already in motion.
     "ambiguous": You are not sure what the player is intending. The game will respond with a clarifying prompt.
-    "other": This should be used for other requests, for example, questions about the rules, requests for hints, attempts to do something impossible, repeating a previously failed action without anything new, or general table talk or meta questoins. If selected, the game will gently explain and guide the player to an appropriate intent. Note that the game _should_ allow any action, no matter how stupid or reckless. Those should instead be "act".
+    "other": This should be used for other requests, for example, questions about the rules, requests for hints, attempts to do something impossible, repeating a previously failed action without anything new, or general table talk or meta questions. If selected, the game will gently explain and guide the player to an appropriate intent. Note that the game _should_ allow any action, no matter how stupid or reckless. Those should instead be "act".
 
 
-    Now, respond in the following json format:
+    You will respond in the following json format, providing each of the following fields:
+    - thought: A thought out single sentence analysis of A) which intent type is most appropriate for the given input, and B) the difficulty of the task given the environment vs the player character's abilities
+    - intent: one of the above intents, "inspect", "act", "ambiguous", or "other"
+    - chance_success: Only incuded for some "inspect" or "act" intents. If the action is difficult, include a number between 0 and 1, where 1 is 100% chance of success. This chance should take into account the character's inherent abilities. Think of this like a skill check in a table-top RPG
+    - early_response: If the intent is 'ambiguous', or 'other', then the response MUST include a prompt with a message to the user to clarify their actions, otherwise for other intents, this field should be left out. If the player is asking about the game in general, prefix your response with "Out of Character: ", and give a reasonable response
+
+    Respond only with the exact json when prompted.
+
+    ## Examples
+
+    Player Input:
+    look around
+
+    JSON Response:
     {
-      "thought": "a thought out single sentence analysis of which intent type is most appropriate for the given input",
-      "intent": "inspect",
-      "early_response": "If the intent is 'ambiguous', then the response MUST include a prompt with a message to the user to clarify their actions, otherwise for other intents, this field should be left out.",
+    "thought": "The player is observing their environment at a high level. This sounds like a basic inspect",
+    "intent": "inspect"
     }
 
+    ---
+
+    Player Input:
+    attack goblin with sword
+
+    JSON Response:
+    {
+    "thought": "The player is now taking action with the sword, however this is perhaps a difficult task since they've never used a sword before",
+    "intent": "act",
+    "chance_success": 0.25
+    }
+
+    ---
+
+    Player Input:
+     x
+
+    JSON Response:
+    {
+    "thought": "It appears the player, perhaps accidentally, input just the characters ' x '",
+    "intent": "ambigous",
+    "early_response": "I'm sorry, I don't understand. Did you mistype?"
+    }
+
+    ---
+
+    Player Input:
+    How does this game work?
+
+    JSON Response:
+    {
+    "thought": "The player is engaging in table-talk about the structure of the game. I will clarify the rules",
+    "intent": "other",
+    "early_response": "Out of Character: We're playing a open world game. Send me input about your character's actions, and the game will progress the story. Be careful! Not all paths end well"
+    }
+
+    ## Context
+
+    Premise:
+    {{premise}}
+
+    Game State:
+    {{game_elements}}
+
+    {% if game_log %}
+    The following is a list of player/game interactions. This is the only data that the player can see:
+    {{game_log}}
+    {% endif %}
+
+    Player Input:
+    {{player_action}}
+
+    JSON Response:
     """
 
 
@@ -191,6 +246,7 @@ type Intent = Literal["act", "inspect", "ambiguous", "other"]
 class IntentDetection(BaseModel):
     thought: str
     intent: Intent
+    chance_success: Optional[float] = None
     early_response: Optional[str] = None
 
 
@@ -198,6 +254,8 @@ class IntentDetection(BaseModel):
 def prompt_plan(
     player_action: str,
     intent: str,
+    chance_success: Optional[float],
+    did_succeed: bool,
     premise: str,
     events_json: str,
     retired_game_events_json: str,
@@ -314,12 +372,6 @@ def prompt_plan(
     {{events_json}}
     ```
 
-    {% endif %}
-    The player has just executed the game with this input:
-    ```
-    {{player_action}}
-    ```
-
     The player's input has been classified as having an intent of "{{intent}}". The following is instructions for how you should respond to this type of input
 
     {% if intent == "inspect" %}
@@ -328,6 +380,18 @@ def prompt_plan(
     {{desc_act}}
     {% elif intent == "other" %}
     {{desc_other}}
+    {% endif %}
+
+    {% endif %}
+    The player has just executed the game with this input:
+    ```
+    {{player_action}}
+    ```
+
+    {% if not did_succeed %}
+    The player had a {{chance_success}} chance of success at this action. However the action failed! Describe the consequences of the failure.
+    {% elif chance_success %}
+    The player had a {{chance_success}} chance of success at this action, and the check passed! Describe the consequences of the success.
     {% endif %}
 
     Now, respond only as json according to the specified format
@@ -357,8 +421,8 @@ def prompt_respond_to_action(
     Guidelines
     - Through storytelling, guide the player towards interactions that evolve towards the game's potential future states
     - This is a text adventure game. End your responses with leading indicators, such as cliff-hangers, or prompts for action, or curious questions about things to look at closer
-    - If the player is asking about the game in general, prefix your response with "Out of Character: ", and give a reasonable response
-    - Pay close attention to the previous "Game" answers: build responses based on previous concepts, and avoid being repetitive
+    - Pay close attention to the previous "game" responses in the player/game interaction history. Build responses based on previous concepts, and avoid being repetitive
+    - Use response length mindfully. You write in a terse, but readable and immersive style. Only use long responses when there is a lot to communicate or there is a crescendo of action. It's better to write shorter responses, leaving the character to ask followup questions to increase player game interactions
 
     ## Context
 
@@ -422,10 +486,17 @@ def dump_time_node(
 LogItemList = TypeAdapter(List[LogItem])
 
 
-def dump_events(time_node: TimeNode, recent_events: List[LogItem] = []) -> str:
-    response = "\n".join(
-        [event.model_dump_json(indent=2) for event in time_node.event_log]
+def dump_events(
+    time_node: TimeNode,
+    recent_events: List[LogItem] = [],
+    max_events: Optional[int] = None,
+) -> str:
+    logs_to_take = (
+        time_node.event_log
+        if max_events is None
+        else time_node.event_log[-1 * max(0, max_events - len(recent_events)) :]
     )
+    response = "\n".join([event.model_dump_json(indent=2) for event in logs_to_take])
     if len(recent_events):
         response += "\n// --- RECENT ---\n"
         response += "\n".join(

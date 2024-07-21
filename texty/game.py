@@ -1,4 +1,15 @@
-from typing import AsyncGenerator, Iterator, List, Literal, Optional, Set, Tuple
+import random
+from typing import (
+    Any,
+    AsyncGenerator,
+    Dict,
+    Iterator,
+    List,
+    Literal,
+    Optional,
+    Set,
+    Tuple,
+)
 import uuid
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field, TypeAdapter
@@ -17,7 +28,7 @@ from texty.gametypes import (
     TimeNode,
 )
 from texty import database, seeds
-from texty.models.model import get_client
+from texty.llm import get_client
 
 import logging
 
@@ -73,7 +84,7 @@ class Game:
                 self.node,
                 is_initialization=True,
             ):
-                if type(event) == StatusUpdate and event.updated_time_node:
+                if type(event) == TimeNodeUpdate:
                     updated = event.updated_time_node
                 yield event
             if updated:
@@ -94,7 +105,7 @@ class Game:
         previous = self.node
         updated = None
         async for event in advance_time_async(player_action, self.node):
-            if type(event) == StatusUpdate and event.updated_time_node:
+            if type(event) == TimeNodeUpdate:
                 updated = event.updated_time_node
                 self.last_node = previous
                 self.node = updated
@@ -123,10 +134,19 @@ class Game:
             return True
 
 
-class StatusUpdate(BaseModel):
-    status: str
-    updated_time_node: Optional[TimeNode] = None
-    debug: Optional[str] = None
+class TimeNodeUpdate(BaseModel):
+    updated_time_node: TimeNode
+
+
+class ProgressUpdate(BaseModel):
+    type: str
+    progress: float  # 0-1
+    details: Optional[Dict[str, Any]] = None
+
+
+class DiceRoll(BaseModel):
+    chance_success: float  # 0-1
+    did_succeed: Optional[bool] = None
 
 
 class TextResponse(BaseModel):
@@ -134,7 +154,7 @@ class TextResponse(BaseModel):
     delta: str
 
 
-AdvanceTimeProgress = StatusUpdate | TextResponse
+AdvanceTimeProgress = TextResponse | ProgressUpdate | TimeNodeUpdate | DiceRoll
 
 
 async def advance_time_async(
@@ -150,11 +170,12 @@ async def advance_time_async(
 
     detected_intent: Optional[IntentDetection] = None
     if not is_initialization:
-        yield StatusUpdate(status="loading-intent")
+        yield ProgressUpdate(type="detect_intent", progress=0)
         detected_intent = await detect_intent(player_action, time_node)
-        yield StatusUpdate(
-            status="loaded-intent",
-            debug=f"{detected_intent.intent}: {detected_intent.thought}",
+        yield ProgressUpdate(
+            type="detect_intent",
+            progress=1,
+            details=detected_intent.model_dump(),
         )
 
     intent: Intent = detected_intent.intent if detected_intent else "act"
@@ -165,7 +186,7 @@ async def advance_time_async(
     events = [
         LogItem(type=intent, role="player", text=player_action, timestep=timestep)
     ]
-    if intent == "ambiguous":
+    if intent == "ambiguous" or intent == "other":
         response = (
             detected_intent.early_response if detected_intent is not None else None
         )
@@ -183,9 +204,18 @@ async def advance_time_async(
             )
         )
     else:
+        chance = detected_intent.chance_success if detected_intent else None
+        rand = random.random()
+        did_succeed = True if chance is None else rand <= chance
+        did_succeed_message = "succeeded" if did_succeed else "failed"
+        print(f"chance: {chance}, rand: {rand}, did_succeed: {did_succeed}")
+        if chance is not None:
+            yield DiceRoll(chance_success=chance, did_succeed=None)
         plan_prompt = prompts.prompt_plan(
             player_action=player_action,
             intent=intent,
+            did_succeed=did_succeed,
+            chance_success=f"{chance * 100:.2f}%" if chance else None,
             premise=time_node.premise,
             events_json=prompts.dump_events(time_node),
             retired_game_events_json=prompts.dump_retired_game_elements(
@@ -193,10 +223,13 @@ async def advance_time_async(
             ),
             active_game_events_json=prompts.dump_game_elements(time_node.game_elements),
         )
-        yield StatusUpdate(status="running-simulation")
+        # delay the success/failure result while planning the story to add tension
+        if chance is not None:
+            yield DiceRoll(chance_success=chance, did_succeed=did_succeed)
+        yield ProgressUpdate(type="plan_story", progress=0)
         update = await get_client("large").json(plan_prompt, GameElementUpdate)
-        yield StatusUpdate(status="ran-simulation")
-        yield StatusUpdate(status="generate-response")
+        yield ProgressUpdate(type="plan_story", progress=1)
+        yield ProgressUpdate(type="generate_response", progress=0)
         prompt = prompts.prompt_respond_to_action(
             player_action=player_action,
             intent=intent,
@@ -209,7 +242,7 @@ async def advance_time_async(
         async for chunk in get_client("large").stream(prompt):
             response += chunk
             yield TextResponse(full_text=response, delta=chunk)
-        yield StatusUpdate(status="generated-response")
+        yield ProgressUpdate(type="generate_response", progress=1)
         events.append(
             LogItem(role="game", type="game-response", text=response, timestep=timestep)
         )
@@ -223,7 +256,7 @@ async def advance_time_async(
     time_node.event_log = time_node.event_log + (
         events[1:] if is_initialization else events
     )
-    yield StatusUpdate(status="done", updated_time_node=time_node)
+    yield TimeNodeUpdate(updated_time_node=time_node)
 
 
 def advance_time(
@@ -254,6 +287,7 @@ async def detect_intent(player_action: str, time_node: TimeNode) -> "IntentDetec
             player_action,
             time_node.premise,
             prompts.dump_game_elements(time_node.game_elements),
+            prompts.dump_events(time_node, max_events=5),
         ),
         IntentDetection,
     )
