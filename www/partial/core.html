@@ -29,12 +29,14 @@
   .header {
     display: flex;
     flex-direction: row;
-    padding: 0.5rem 0; /* Add some padding above and below */
+    align-items: center;
+    padding: 0.5rem 1rem;
   }
   .header h1 {
     margin: 0;
-    font-size: 2rem;
+    font-size: 1.5rem;
     color: var(--color-textAccent1);
+    flex-grow: 1;
   }
   .header .logo-container {
     display: flex;
@@ -43,11 +45,11 @@
     padding-right: 0.5rem;
   }
   .header .logo-link svg {
-    width: 40px;
-    height: 40px;
+    width: 30px;
+    height: 30px;
   }
   .header .logo-link:hover svg polygon {
-    fill: var(--bs-secondary-color);
+    fill: var(--bs-secondary);
   }
 </style>
 <script>

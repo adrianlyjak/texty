@@ -37,7 +37,7 @@ def navbar() -> Nav:
             cls="logo-container",
         ),
         H1("RNGes.us"),
-        cls="container",
+        cls="header",
     )
 
 
@@ -46,7 +46,7 @@ def page(*children):
     return (
         Title("RNG"),
         NotStr(corehtml),
-        Div(navbar(), *children, cls="container"),
+        Div(navbar(), *children, cls="content"),
     )
 
 
