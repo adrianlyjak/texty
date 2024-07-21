@@ -5,6 +5,10 @@
   text-align: center;
 }
 
+.header-hero-img svg:hover {
+  filter: brightness(1.2);
+}
+
 .header-hero-img img {
   display: block;
   max-width: 100%;
