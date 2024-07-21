@@ -8,7 +8,7 @@
           Choose from one of our pre-made story templates to get started
           quickly.
         </p>
-        <form hx-post="/games/create" hx-target="#form-alerts" class="d-flex flex-column justify-content-end flex-grow-1">
+        <form hx-post="/games/create" hx-target="#form-alerts" class="d-flex flex-column">
           <div class="mb-3">
             <label for="template" class="form-label">Template</label>
             <div class="form-text">
@@ -98,7 +98,7 @@
               class="form-control"
               name="prompt"
               id="prompt"
-              rows="3"
+              rows="6"
               placeholder="Describe the game"
             ></textarea>
           </div>
