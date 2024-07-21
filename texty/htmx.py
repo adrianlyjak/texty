@@ -76,9 +76,9 @@ def get(request: starlette.requests.Request):
                     name="new-game",
                     cls="primary",
                 ),
-                cls="container",
+                cls="col",
             ),
-            cls="grid",
+            cls="container grid",
         ),
     )
 
