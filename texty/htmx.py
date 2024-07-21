@@ -76,7 +76,7 @@ def get(request: starlette.requests.Request):
                     name="new-game",
                     cls="primary",
                 ),
-                cls="col flex flex-row items-center justify-center",
+                cls="col flex flex-row items-center justify-center gap3",
             ),
             cls="container grid",
         ),
