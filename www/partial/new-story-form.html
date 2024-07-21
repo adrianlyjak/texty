@@ -8,7 +8,7 @@
           Choose from one of our pre-made story templates to get started
           quickly.
         </p>
-        <form hx-post="/games/create" hx-target="#form-alerts" class="mb-auto">
+        <form hx-post="/games/create" hx-target="#form-alerts" class="d-flex flex-column justify-content-end flex-grow-1">
           <div class="mb-3">
             <label for="template" class="form-label">Template</label>
             <div class="form-text">
@@ -91,7 +91,7 @@
       <section class="h-100 d-flex flex-column">
         <h4>Or Create Your Own</h4>
         <p>Alternatively, you can create your own custom story premise.</p>
-        <form hx-post="/games/create" hx-target="#form-alerts" class="mb-auto">
+        <form hx-post="/games/create" hx-target="#form-alerts" class="d-flex flex-column justify-content-end flex-grow-1">
           <div class="mb-3">
             <label for="prompt" class="form-label">Premise</label>
             <textarea
