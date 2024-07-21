@@ -46,7 +46,7 @@ def page(*children):
     return (
         Title("RNG"),
         NotStr(corehtml),
-        Div(navbar(), *children, cls="content"),
+        Div(navbar(), *children, cls="container"),
     )
 
 
@@ -61,26 +61,29 @@ def get(request: starlette.requests.Request):
         Style(blurcss),
         Main(
             Div(
-                Img(src="static/img/rngesus13.jpg"),
-                cls="header-hero-img col",
-            ),
-            Div(
-                A(
-                    "Load Game",
-                    href="/games",
-                    name="load-game",
-                    cls="pa3",
+                Div(
+                    Img(src="static/img/rngesus13.jpg"),
+                    cls="header-hero-img d-flex justify-content-center col-sm",
                 ),
-                A(
-                    "New Game",
-                    href="/games/create",
-                    name="new-game",
-                    role="button",
-                    cls="primary pa3",
+                Div(
+                    A(
+                        "Load Game",
+                        href="/games",
+                        name="load-game",
+                    ),
+                    A(
+                        "New Game",
+                        href="/games/create",
+                        name="new-game",
+                        role="button",
+                        cls="primary mx-3",
+                    ),
+                    style="min-height: 6rem",
+                    cls="col-sm order-first-sm d-flex flex-row justify-content-center align-items-center",
                 ),
-                cls="col flex flex-row items-center justify-center",
+                cls="row",
             ),
-            cls="container grid",
+            cls="container",
         ),
     )
 
@@ -114,11 +117,9 @@ def get():
     )
 
 
-new_story_form = jinja2.Template(partial("new-story-form.jinja"))
-
-
 @rt("/games/create")
 def get():
+    new_story_form = jinja2.Template(partial("new-story-form.jinja"))
     corehtml = partial("core.html")
     options = [
         {"id": seed, "summary": f"{seed}: {seeds.get_seed(seed).premise}"}
@@ -195,10 +196,10 @@ def get(scenario_id: str):
             ),
             Script(SCROLL_ON_MESSAGE_SCRIPT),
             Form(
-                Div(
+                Fieldset(
                     game_input_area(),
-                    Button("Send", cls="primary", type="submit"),
-                    cls="input-area",
+                    Button("Send", type="submit"),
+                    role="group",
                 ),
                 ws_send="",
                 hx_trigger="keyup[!shiftKey&&key=='Enter'], submit",
@@ -219,6 +220,7 @@ def game_input_area() -> Div:
             name="game-input",
             placeholder="Enter an action",
             onInput="this.parentNode.dataset.replicatedValue = this.value",
+            cls="mb-0",
         ),
         cls="grow-wrap",
         id="game-input-area",

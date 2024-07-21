@@ -1,49 +1,44 @@
-<div class="container">
-  <div id="form-alerts"></div>
-  <div class="grid">
-    <div>
-      <section>
-        <h4>Select a Template</h4>
-        <p>
-          Choose from one of our pre-made story templates to get started
-          quickly.
-        </p>
-        <form
-          hx-post="/games/create"
-          hx-target="#form-alerts"
-        >
-          <div>
-            <label for="template">Template</label>
-            <select name="template" id="template">
-              {% for option in options %}
-              <option value="{{ option.id }}">{{ option.summary }}</option>
-              {% endfor %}
-            </select>
-          </div>
-          <button type="submit" class="primary">Start</button>
-        </form>
-      </section>
-    </div>
-    <div>
-      <section>
-        <h4>Or Create Your Own</h4>
-        <p>Alternatively, you can create your own custom story premise.</p>
-        <form
-          hx-post="/games/create"
-          hx-target="#form-alerts"
-        >
-          <div>
-            <label for="prompt">Premise</label>
-            <textarea
-              name="prompt"
-              id="prompt"
-              rows="6"
-              placeholder="Describe the game"
-            ></textarea>
-          </div>
-          <button type="submit" class="primary">Start</button>
-        </form>
-      </section>
-    </div>
-  </div>
+<div id="form-alerts"></div>
+<div class="row">
+  <section class="col-sm d-flex flex-column">
+    <h4>Select a Template</h4>
+    <p>
+      Choose from one of our pre-made story templates to get started quickly.
+    </p>
+    <form
+      hx-post="/games/create"
+      hx-target="#form-alerts"
+      class="d-flex justify-content-between flex-column flex-fill"
+    >
+      <div>
+        <label for="template">Template</label>
+        <select name="template" id="template">
+          {% for option in options %}
+          <option value="{{ option.id }}">{{ option.summary }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <button type="submit" class="primary">Start</button>
+    </form>
+  </section>
+  <section class="col-sm d-flex flex-column">
+    <h4>Or Create Your Own</h4>
+    <p>Alternatively, you can create your own custom story premise.</p>
+    <form
+      hx-post="/games/create"
+      hx-target="#form-alerts"
+      class="d-flex justify-content-between flex-column flex-fill"
+    >
+      <div>
+        <label for="prompt">Premise</label>
+        <textarea
+          name="prompt"
+          id="prompt"
+          rows="6"
+          placeholder="Describe the game"
+        ></textarea>
+      </div>
+      <button type="submit" class="primary">Start</button>
+    </form>
+  </section>
 </div>
