@@ -1,0 +1,162 @@
+<script src="https://unpkg.com/htmx-ext-ws@2.0.0/ws.js"></script>
+<style>
+  .game-container {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .navbar-icon svg:hover {
+    filter: brightness(1.2);
+  }
+  .game-content-container {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .game-message-game,
+  .game-message-player {
+    padding-bottom: 1rem;
+  }
+
+  .game-message-system:first-child {
+    margin-top: 0;
+  }
+
+  .game-message-system,
+  .game-message-player,
+  .game-message-game {
+    margin-top: 1rem;
+  }
+
+  .game-message-player {
+    color: var(--color-textAccent1);
+    text-align: right;
+  }
+
+  .game-message-system {
+    color: var(--color-textAccent2);
+  }
+
+  .game-message-game {
+  }
+
+  .input-area {
+    display: flex;
+    background-color: var(--secondary-color);
+    border-radius: 5px;
+    overflow: hidden;
+    gap: 1rem;
+    align-items: center;
+    width: 100%;
+    padding: 0.5rem;
+    box-sizing: border-box;
+  }
+
+  .input-form {
+    background-color: var(--bg-color);
+    padding: 0.5rem;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+    width: 100%;
+  }
+
+  .send-button {
+    padding: 1rem;
+    cursor: pointer;
+  }
+
+  /** https://css-tricks.com/the-cleanest-trick-for-autogrowing-textareas/ */
+  .grow-wrap {
+    /* easy way to plop the elements on top of each other and have them both sized based on the tallest one's height */
+    display: grid;
+    width: 100%;
+  }
+  .grow-wrap::after {
+    /* Note the weird space! Needed to preventy jumpy behavior */
+    content: attr(data-replicated-value) " ";
+
+    /* This is how textarea text behaves */
+    white-space: pre-wrap;
+
+    /* Hidden from view, clicks, and screen readers */
+    visibility: hidden;
+  }
+  .grow-wrap > textarea {
+    /* You could leave this, but after a user resizes, then it ruins the auto sizing */
+    resize: none;
+
+    /* Firefox shows scrollbar on growth, you can hide like this. */
+    overflow: hidden;
+  }
+  .grow-wrap > textarea,
+  .grow-wrap::after {
+    /* Identical styling required!! */
+    border: 1px solid black;
+    padding: 0.5rem;
+    font: inherit;
+    width: 100%;
+
+    /* Place on top of each other */
+    grid-area: 1 / 1 / 2 / 2;
+  }
+
+  body {
+    max-height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+</style>
+<main
+  class="container flex-fill overflow-y-hidden game-container d-flex flex-column"
+  hx-ext="ws"
+  ws-connect="/ws/scenario/{{ scenario_id }}"
+>
+  <div class="game-content-container flex-fill">
+    <div id="game-content"></div>
+  </div>
+  <form
+    class="input-form"
+    id="game-input-form"
+    ws-send=""
+    hx-trigger="keyup[!shiftKey&&key=='Enter'], submit"
+  >
+    <div class="w-100 d-flex flex-row">
+      <div class="flex-fill">
+        {{ game_input_area | safe }}
+      </div>
+      <div class="d-flex justify-content-center align-items-center px-3">
+        <button class="btn btn-primary" type="submit">Send</button>
+      </div>
+    </div>
+  </form>
+  <script>
+    let lastUpdate = 0;
+    document.addEventListener("htmx:wsAfterMessage", (e) => {
+      {
+        const now = Date.now().valueOf();
+        const passed = now - lastUpdate;
+        const messagesDiv = document.querySelector(".game-content-container");
+        const diff =
+          messagesDiv.scrollHeight -
+          messagesDiv.scrollTop -
+          messagesDiv.clientHeight;
+        if (diff < 200 || passed > 1000 || lastUpdate === 0) {
+          {
+            setTimeout(() => {
+              {
+                messagesDiv.scrollTop =
+                  messagesDiv.scrollHeight - messagesDiv.clientHeight;
+              }
+            }, 0);
+          }
+        }
+        lastUpdate = now;
+      }
+    });
+  </script>
+</main>

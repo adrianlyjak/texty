@@ -26,18 +26,16 @@ LOGO = """<svg width="50" height="50" viewBox="0 0 100 100" xmlns="http://www.w3
 """
 
 
-def navbar() -> Nav:
-    return Nav(
-        Div(
-            A(
-                NotStr(LOGO),
-                href="/",
-                cls="logo-link",
-            ),
-            cls="logo-container",
-        ),
-        H1("RNGes.us"),
-        cls="header",
+def navbar(extra_cls: str = "", sticky: bool = True) -> Nav:
+    return NotStr(
+        f"""
+<header class="{extra_cls} {'sticky-top' if sticky else ''} navbar bg-body">
+    <nav class="header container">
+        <div class="logo-container"><a href="/" class="logo-link">{LOGO}</a></div>
+        <h1>RNGes.us</h1>
+    </nav>
+</header>
+"""
     )
 
 
@@ -46,7 +44,8 @@ def page(*children):
     return (
         Title("RNG"),
         NotStr(corehtml),
-        Div(navbar(), *children, cls="container"),
+        navbar(),
+        Main(*children, cls="container"),
     )
 
 
@@ -54,10 +53,12 @@ def page(*children):
 def get(request: starlette.requests.Request):
 
     blurcss = partial("css/splash-header.css")
+    corehtml = partial("core.html")
 
     return page(
-        Style(blurcss),
-        NotStr(partial("homepage.html")),
+        Title("RNG"),
+        NotStr(corehtml),
+        Main(Style(blurcss), NotStr(partial("homepage.html")), cls="container"),
     )
 
 
@@ -83,31 +84,20 @@ def get():
             )
         )
     return page(
-        Main(
-            H2("Load Game"),
-            *saved_games,
-        ),
+        H2("Load Game"),
+        *saved_games,
     )
 
 
 @rt("/games/create")
 def get():
     new_story_form = jinja2.Template(partial("new-story-form.jinja"))
-    corehtml = partial("core.html")
     options = [
         {"id": seed, "summary": f"{seed}: {seeds.get_seed(seed).premise}"}
         for seed in seeds.list_seeds()
     ]
     form = new_story_form.render(options=options)
-    return (
-        Title("RNG"),
-        NotStr(corehtml),
-        Main(
-            navbar(),
-            NotStr(form),
-            cls="container",
-        ),
-    )
+    return page(NotStr(form))
 
 
 @dataclass
@@ -133,57 +123,16 @@ async def post(data: CreateGameRequest):
         )
 
 
-SCROLL_ON_MESSAGE_SCRIPT = """
-let lastUpdate = 0
-document.addEventListener("htmx:wsAfterMessage", e => {
-    const now = Date.now().valueOf();
-    const passed = now - lastUpdate;
-    const messagesDiv = document.querySelector(".game-content-container");
-    const diff = messagesDiv.scrollHeight - messagesDiv.scrollTop - messagesDiv.clientHeight;
-    if (diff < 200 || passed > 1000 || lastUpdate === 0) {
-        setTimeout(() => {
-            messagesDiv.scrollTop = messagesDiv.scrollHeight - messagesDiv.clientHeight;
-        }, 0)
-    }
-    lastUpdate = now;
-})
-"""
-
-
 @rt("/game/{scenario_id}")
 def get(scenario_id: str):
 
-    corehtml = partial("core.html")
-    return (
-        Title("RNG"),
-        NotStr(corehtml),
-        NotStr('<script src="https://unpkg.com/htmx-ext-ws@2.0.0/ws.js"></script>'),
-        Style(partial("css/game.css")),
-        Div(
-            navbar(),
-            Div(
-                Div(
-                    id="game-content",
-                ),
-                cls="game-content-container",
-            ),
-            Script(SCROLL_ON_MESSAGE_SCRIPT),
-            Form(
-                Fieldset(
-                    game_input_area(),
-                    Button("Send", type="submit"),
-                    role="group",
-                ),
-                ws_send="",
-                hx_trigger="keyup[!shiftKey&&key=='Enter'], submit",
-                cls="input-form",
-                id="game-input-form",
-            ),
-            hx_ext="ws",
-            ws_connect=f"/ws/scenario/{scenario_id}",
-            cls="game-container container",
-        ),
+    input = to_xml(game_input_area())
+    main = jinja2.Template(partial("empty-game.jinja")).render(
+        scenario_id=scenario_id, game_input_area=input
     )
+    corehtml = partial("core.html")
+
+    return (Title("RNG"), NotStr(corehtml), navbar(sticky=False), NotStr(main))
 
 
 def game_input_area() -> Div:
@@ -193,7 +142,7 @@ def game_input_area() -> Div:
             name="game-input",
             placeholder="Enter an action",
             onInput="this.parentNode.dataset.replicatedValue = this.value",
-            cls="mb-0",
+            cls="mb-0 form-control border-1 border-primary",
         ),
         cls="grow-wrap",
         id="game-input-area",

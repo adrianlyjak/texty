@@ -10,15 +10,15 @@
       hx-target="#form-alerts"
       class="d-flex justify-content-between flex-column flex-fill"
     >
-      <div>
-        <label for="template">Template</label>
-        <select name="template" id="template">
+      <div class="mb-3">
+        <label for="template" class="form-label">Template</label>
+        <select name="template" id="template" class="form-select">
           {% for option in options %}
           <option value="{{ option.id }}">{{ option.summary }}</option>
           {% endfor %}
         </select>
       </div>
-      <button type="submit" class="primary">Start</button>
+      <button type="submit" class="btn btn-primary">Start</button>
     </form>
   </section>
   <section class="col-sm d-flex flex-column">
@@ -29,16 +29,17 @@
       hx-target="#form-alerts"
       class="d-flex justify-content-between flex-column flex-fill"
     >
-      <div>
-        <label for="prompt">Premise</label>
+      <div class="mb-3">
+        <label for="prompt" class="form-label">Premise</label>
         <textarea
           name="prompt"
           id="prompt"
           rows="6"
           placeholder="Describe the game"
+          class="form-control"
         ></textarea>
       </div>
-      <button type="submit" class="primary">Start</button>
+      <button type="submit" class="btn btn-primary">Start</button>
     </form>
   </section>
 </div>
