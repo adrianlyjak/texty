@@ -62,6 +62,122 @@ class TimeNodeTemplate(BaseModel):
 
 
 @outlines.prompt
+def prompt_gen_premises(
+    n_clues: int = 5,
+    n_premises: int = 5,
+    user_request: str = "[No requests, generate unique and engaging premises]",
+):
+    """
+    You are building an AI powered interactive story game, similar to classic choose-your-own-adventure books, but with more potential for player agency. To that end, we need to brainstorm {{n_premises}} story premise{% if n_premises != 1 %}s{% endif %}.
+
+    A premise is composed of 4 parts:
+
+    1. **The central "Story Problem":** This is the main conflict that the story is about. This problem should be made clear to the player from the very beginning, along with some initial choices that will provide the player with some ideas how they can begin to solve the problem. What is the initial suggested course of action?
+
+    2. **The "Hidden Clues":** In solving the story problem, the player will need to explore the world of the story and uncover clues that will ultimately help them uncover the story's mystery and solve the story problem. There may be many, but describe the {{n_clues}} most important clue{% if n_clues != 1 %}s{% endif %} that they will need to discover in order to reveal the true nature of the story problem and the secret to how to solve it. Describe each clue in detail as well as the impact it will have on the players understanding of the story and it's solution.
+
+    3. **The "Surprise Twist":** When the player has successfully accumulated all of the clues and is ready to solve the story problem, the story takes a surprising turn that subverts the player's expectations of the true nature of the story problem and its solution.
+
+    4. **The "Ultimate Resolution":** How does the story end? What does the player ultimately discover about the world? With all the clues successfully assembled, what final action and/or challenge will the player need to take to resolve the story problem? How does the story end?
+
+    For the premises that are being generated now, the user has requested the following:
+    <UserRequest>
+    {{user_request}}
+    </UserRequest>
+
+    Respond in the following JSON format:
+    [
+    {
+      "story_problem": "The story problem",
+      "hidden_clues": ["first hidden clue. Impact: the impact that it makes"],
+      "surprise_twist": "The surprise twist",
+      "ultimate_resolution": "The ultimate resolution"
+    }
+    ]
+    """
+
+
+@outlines.prompt
+def prompt_gen_second_draft_premise(
+    story_problem: str,
+    hidden_clues: List[str],
+    surprise_twist: str,
+    ultimate_resolution: str,
+    user_request: str = "[No requests, generate unique and engaging premises]",
+    n_clues_min: int = 5,
+    n_clues_max: int = 15,
+    n_elements_min: int = 10,
+    n_elements_max: int = 20,
+):
+    """
+    You are an expert story game designer. You are revising a story concept, fleshing it out and improving it.
+
+    The story concept so far is made up of the following parts:
+
+    <StoryProblem>{{story_problem}}</StoryProblem>
+    <HiddenClues>
+    {% for clue in hidden_clues %}
+    <Clue>{{clue}}</Clue>
+    {% endfor %}
+    </HiddenClues>
+    <SurpriseTwist>{{surprise_twist}}</SurpriseTwist>
+    <UltimateResolution>{{ultimate_resolution}}</UltimateResolution>
+
+    You are now building out a revised and fleshed out model of the story. Add more details to each section. You may edit out details from the first draft to make a better and more cohesive narrative in the second draft.
+
+    Unless otherwise noted, none of this information you write will be visible to the player. This is all internal state that the AI will track in order to build a cohesive, engaging, and immersive narrative
+
+    Respond with a repeat of the original input tags, along with some new additional fields. Use XML tags to delimit fields. Respond with all of the following tags:
+
+    <StoryProblem>
+    Expand and edit the original
+    </StoryProblem>
+    <HiddenClues>
+    <Clue>
+    Determine a fresh new list of clues based on what you like about the first draft. You may add and expand some of the previous clues only if they are relevant and very high quality.
+    </Clue>
+    <Clue>
+    Respond with each clue in a separate element. Generate {{n_clues_min}} to {{n_clues_max}} clues total.
+    </Clue>
+    </HiddenClues>
+    <PromiseOfThePremise>
+    <Opportunity>
+    Given the story type and world. Come up with story elements and opportunities that a reader would expect in this type of story. First explain what the user expects and generally how this element fulfills it. Then make it specific. Make up another character, place, or event that would be expected in this type of story.
+    </Opportunity>
+    <Opportunity>
+    Respond with between {{n_elements_min}} and {{n_elements_max}} story elements total.
+    </Opportunity>
+    </PromiseOfThePremise>
+    <SurpriseTwist>
+    Expand and edit the original
+    </SurpriseTwist>
+    <UltimateResolution>
+    Expand and edit the original
+    </UltimateResolution>
+    <GameState>
+    Using the scene and sequel methodology, describe whether the game should start in an action or reaction state. (jumping into the action, or starting with background introspection). Respond with only the text "Action" or "Reaction" within the xml GameState tag.
+    </GameState>
+    <Introduction>
+    Write the initial scene for the player here. This will be passed verbatim to the player. This is their first interaction with the game. Make sure that it's immersive, and explains the story context enough to engage the player in exploration and interaction.
+
+    If the <GameState> is "Action" then kick the story off with a bang, requiring the player to act on their feet. Otherwise, if the <GameState> is "Reaction" then keep the game exploratory and introspective, slowly revealing background information that will inform the progression to the next Action.
+
+    Note that the game ONLY controls external elements. The game NEVER controls the movement, speech, or actions of the player character THIS IS COMPLETELY OFF LIMITS. The player must be prompted for the player character's actions.
+    </Introduction>
+    <GameElements>
+    <Element id="each-element-has-a-unique-readable-kabob-case-id">
+    A game element is a concrete "actor" in the story that already exists. For example: a character, object, place, event, etc. Frequently "Opportunity" or "Clue" elements become a game "Element" after they are introduced to the player. Only define elements that have been introduced to the character, for example in the "Introduction"
+
+    Game element descriptions are not visible to the player. Store internal motivations or backstory for the element here in the XML tags. Game elements bring the story to life that may (or may not) be revealed to the player as the story progresses.
+    </Element>
+    <Element>
+    For this draft, establish any game elements that are needed to make the story introduction feel rich.
+    </Element>
+    </GameElements>
+    """
+
+
+@outlines.prompt
 def desc_intent_inspect():
     """
     Inspect - In response to requests of this type, the game will provide information about the game, doing some basic extrapolation about what would be realistic to the scenario, without affecting signifant change or time advancing (e.g. no travel occurs, just auditory and visual descriptions of the world). The player may only interact with his immediate environment, walking short distances, for example around a small room.
@@ -465,22 +581,6 @@ def prompt_respond_to_action(
 
     Now, respond with the exact text to return to the player:
     """
-
-
-def dump_time_node(
-    time_node: TimeNode,
-    id: bool = False,
-    event_log: bool = False,
-    previous: bool = False,
-) -> str:
-    exclude = set()
-    if not id:
-        exclude.add("id")
-    if not event_log:
-        exclude.add("event_log")
-    if not previous:
-        exclude.add("previous")
-    return time_node.model_dump_json(indent=2, include=premise)
 
 
 LogItemList = TypeAdapter(List[LogItem])

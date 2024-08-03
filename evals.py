@@ -1,8 +1,9 @@
+import json
 import logging
 from inspect_ai import Task, task
 from inspect_ai.dataset import MemoryDataset, Sample
 from inspect_ai.solver import Generate, TaskState, call_tools, generate, solver
-from inspect_ai.model import ChatMessageUser
+from inspect_ai.model import CachePolicy, ChatMessageUser
 from texty.gametypes import TimeNode
 from texty import seeds
 from texty import prompts
@@ -43,7 +44,7 @@ def run_planning(intent: prompts.Intent):
                 ),
             )
         ]
-        state = await generate(state, cache=True)
+        state = await generate(state, cache=CachePolicy(expiry="12M"))
         state.messages = original_messages + state.messages
         return state
 
@@ -103,12 +104,12 @@ def eval_define_game():
         ),
         plan=[
             run_define_game(),
-            generate(cache=True),
+            generate(cache=CachePolicy(expiry="12M")),
         ],
     )
 
 
-from typing import List, Literal
+from typing import List, Literal, Optional
 from pydantic import BaseModel
 from inspect_ai.solver import tool, use_tools
 from inspect_ai import task, Task
@@ -166,4 +167,85 @@ def eval_word_extract():
             ]
         ),
         plan=[generate_words()],
+    )
+
+
+@solver
+def generate_story_premise(
+    premise: str = "[No requests, generate unique and engaging premises]",
+):
+    async def solve(state: TaskState, generate: Generate):
+        msg_log = []
+        msg = ChatMessageUser(
+            role="user",
+            content=prompts.prompt_gen_premises(
+                n_clues=5, n_premises=1, user_request=premise
+            ),
+        )
+        state.messages = [msg]
+        await generate(state, cache=CachePolicy(expiry="12M"))
+        msg_log.extend(state.messages)
+        # [
+        # {
+        # "story_problem": "The story problem",
+        # "hidden_clues": ["first hidden clue. Impact: the impact that it makes"],
+        # "surprise_twist": "The surprise twist",
+        # "ultimate_resolution": "The ultimate resolution"
+        # }
+        # ]
+        output = state.output.completion
+        if "```" in output:
+            # trim everything before, AND everything afteron the same line as the ```
+            splits = output.split("\n")
+            start_index = 0
+            for i in range(len(splits)):
+                if "```" in splits[i]:
+                    start_index = i + 1
+                    break
+            end_index = len(splits)
+            for i in range(len(splits)):
+                if "```" in splits[i]:
+                    end_index = i - 1
+                    break
+            output = "\n".join(splits[start_index:end_index])
+
+        print("output=", output)
+        data = json.loads(output)
+        # change selection if you want
+        selected = data[0]
+        msg = ChatMessageUser(
+            role="user",
+            content=prompts.prompt_gen_second_draft_premise(
+                selected["story_problem"],
+                selected["hidden_clues"],
+                selected["surprise_twist"],
+                selected["ultimate_resolution"],
+            ),
+        )
+        print("output=", state.output.completion)
+        state.messages = [msg]
+        await generate(state, cache=CachePolicy(expiry="12M"))
+        msg_log.extend(state.messages)
+
+        state.messages = msg_log
+        return state
+
+    return solve
+
+
+@task
+def eval_gen_premise():
+    return Task(
+        dataset=MemoryDataset(
+            [
+                Sample(
+                    input="none",
+                )
+            ]
+        ),
+        plan=[
+            generate_story_premise(
+                "Sexy and psychedelic science fiction that takes place on and around the moons of Jupiter. Main character is a 28 year old woman working in a bathhouse on a space station. Bath-house aesthetic is influenced by geisha culture. Intrigue is around mysterious alien sentience that is stretches our normal physical and human understanding of the universe."
+            ),
+        ],
     )
