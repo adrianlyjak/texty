@@ -85,7 +85,7 @@ class GradioInterface:
                 self.game_output.append_response_delta("game", event.delta)
                 yield self.game_output
         if not self.game_output.inprogress:
-            for event in self.game.node.event_log:
+            for event in self.game.node.game_log:
                 if event.role != "internal":
                     self.game_output.add_history(
                         Message(role=event.role, content=event.text)

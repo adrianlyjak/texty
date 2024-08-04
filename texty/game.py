@@ -4,11 +4,7 @@ from typing import (
     AsyncGenerator,
     Dict,
     Iterator,
-    List,
-    Literal,
     Optional,
-    Set,
-    Tuple,
 )
 import uuid
 from fastapi.responses import HTMLResponse
@@ -77,7 +73,7 @@ class Game:
         self.node = database.get_active_node(scenario_id=self.scenario_id)
         if not self.node:
             self.node = seed.model_copy(update={"id": self.scenario_id})
-        if not self.node.event_log:
+        if not self.node.game_log:
             updated = None
             async for event in advance_time_async(
                 "(the player has entered. Set the scene for them, imagine a starting scene, and introduce the character and the story)",
@@ -253,7 +249,7 @@ async def advance_time_async(
         time_node = TimeNode.model_validate(time_node.model_dump())
 
     # ignore the seed event, just useful for communicating context for the first iteration
-    time_node.event_log = time_node.event_log + (
+    time_node.game_log = time_node.game_log + (
         events[1:] if is_initialization else events
     )
     yield TimeNodeUpdate(updated_time_node=time_node)

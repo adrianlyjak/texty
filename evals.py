@@ -185,49 +185,31 @@ def generate_story_premise(
         state.messages = [msg]
         await generate(state, cache=CachePolicy(expiry="12M"))
         msg_log.extend(state.messages)
-        # [
-        # {
-        # "story_problem": "The story problem",
-        # "hidden_clues": ["first hidden clue. Impact: the impact that it makes"],
-        # "surprise_twist": "The surprise twist",
-        # "ultimate_resolution": "The ultimate resolution"
-        # }
-        # ]
         output = state.output.completion
-        if "```" in output:
-            # trim everything before, AND everything afteron the same line as the ```
-            splits = output.split("\n")
-            start_index = 0
-            for i in range(len(splits)):
-                if "```" in splits[i]:
-                    start_index = i + 1
-                    break
-            end_index = len(splits)
-            for i in range(len(splits)):
-                if "```" in splits[i]:
-                    end_index = i - 1
-                    break
-            output = "\n".join(splits[start_index:end_index])
+        parsed = prompts.parse_premises_first_draft(output)
 
-        print("output=", output)
-        data = json.loads(output)
-        # change selection if you want
-        selected = data[0]
+        selected = parsed[0]
         msg = ChatMessageUser(
             role="user",
             content=prompts.prompt_gen_second_draft_premise(
-                selected["story_problem"],
-                selected["hidden_clues"],
-                selected["surprise_twist"],
-                selected["ultimate_resolution"],
+                selected.story_problem,
+                [x.text for x in selected.hidden_clues],
+                selected.surprise_twist,
+                selected.ultimate_resolution,
             ),
         )
         print("output=", state.output.completion)
         state.messages = [msg]
-        await generate(state, cache=CachePolicy(expiry="12M"))
+        await generate(
+            state, cache=CachePolicy(expiry="12M"), temperature=1, max_tokens=4096
+        )
         msg_log.extend(state.messages)
-
         state.messages = msg_log
+        print(
+            TimeNode.from_premise(
+                prompts.parse_premise_second_draft(state.output.completion)
+            ).model_dump_json(indent=2)
+        )
         return state
 
     return solve

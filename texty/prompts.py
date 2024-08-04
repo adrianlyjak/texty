@@ -1,13 +1,16 @@
+from dataclasses import dataclass
 import json
 from typing import List, Literal, Optional
+from bs4 import BeautifulSoup
 import outlines
 from pydantic import BaseModel, Field, TypeAdapter
 
 from texty.gametypes import (
     GameElement,
     LogItem,
-    RetiredGameElement,
     TimeNode,
+    PremiseDraft,
+    TypelessGameElement,
 )
 
 
@@ -72,29 +75,58 @@ def prompt_gen_premises(
 
     A premise is composed of 4 parts:
 
-    1. **The central "Story Problem":** This is the main conflict that the story is about. This problem should be made clear to the player from the very beginning, along with some initial choices that will provide the player with some ideas how they can begin to solve the problem. What is the initial suggested course of action?
+    1. The central "Story Problem": This is the main conflict that the story is about. This problem should be made clear to the player from the very beginning, along with some initial choices that will provide the player with some ideas how they can begin to solve the problem. What is the initial suggested course of action?
 
-    2. **The "Hidden Clues":** In solving the story problem, the player will need to explore the world of the story and uncover clues that will ultimately help them uncover the story's mystery and solve the story problem. There may be many, but describe the {{n_clues}} most important clue{% if n_clues != 1 %}s{% endif %} that they will need to discover in order to reveal the true nature of the story problem and the secret to how to solve it. Describe each clue in detail as well as the impact it will have on the players understanding of the story and it's solution.
+    2. The "Hidden Clues": In solving the story problem, the player will need to explore the world of the story and uncover clues that will ultimately help them uncover the story's mystery and solve the story problem. There may be many, but describe the {{n_clues}} most important clue{% if n_clues != 1 %}s{% endif %} that they will need to discover in order to reveal the true nature of the story problem and the secret to how to solve it. Describe each clue in detail as well as the impact it will have on the players understanding of the story and it's solution.
 
-    3. **The "Surprise Twist":** When the player has successfully accumulated all of the clues and is ready to solve the story problem, the story takes a surprising turn that subverts the player's expectations of the true nature of the story problem and its solution.
+    3. The "Surprise Twist": When the player has successfully accumulated all of the clues and is ready to solve the story problem, the story takes a surprising turn that subverts the player's expectations of the true nature of the story problem and its solution.
 
-    4. **The "Ultimate Resolution":** How does the story end? What does the player ultimately discover about the world? With all the clues successfully assembled, what final action and/or challenge will the player need to take to resolve the story problem? How does the story end?
+    4. The "Ultimate Resolution": How does the story end? What does the player ultimately discover about the world? With all the clues successfully assembled, what final action and/or challenge will the player need to take to resolve the story problem? How does the story end?
 
     For the premises that are being generated now, the user has requested the following:
     <UserRequest>
     {{user_request}}
     </UserRequest>
 
-    Respond in the following JSON format:
-    [
-    {
-      "story_problem": "The story problem",
-      "hidden_clues": ["first hidden clue. Impact: the impact that it makes"],
-      "surprise_twist": "The surprise twist",
-      "ultimate_resolution": "The ultimate resolution"
-    }
-    ]
+    Use plain text within XML tags. Avoid markdown and numbered or bulleted lists. Respond in the following XML format, with each premise wrapped in a <Premise> tag:
+
+    <Premise>
+    <StoryProblem>
+    The story problem
+    </StoryProblem>
+    <HiddenClues>
+    <Clue>
+    The first hidden clue. Impact: the impact that it makes
+    </Clue>
+    <Clue>
+    The second hidden clue. Impact: the impact that it makes
+    </Clue>
+    </HiddenClues>
+    <SurpriseTwist>
+    The surprise twist
+    </SurpriseTwist>
+    <UltimateResolution>
+    The ultimate resolution
+    </UltimateResolution>
+    </Premise>
     """
+
+
+def parse_premises_first_draft(premise_response: str) -> List[PremiseDraft]:
+    soup = BeautifulSoup(premise_response, "html.parser")
+    premise_elements = soup.find_all("premise")
+    return [
+        PremiseDraft(
+            story_problem=premise.storyproblem.text.strip(),
+            hidden_clues=[
+                TypelessGameElement(id=f"clue-{i}", text=clue.text.strip())
+                for i, clue in enumerate(premise.hiddenclues.find_all("clue"))
+            ],
+            surprise_twist=premise.surprisetwist.text.strip(),
+            ultimate_resolution=premise.ultimateresolution.text.strip(),
+        )
+        for premise in premise_elements
+    ]
 
 
 @outlines.prompt
@@ -111,6 +143,12 @@ def prompt_gen_second_draft_premise(
 ):
     """
     You are an expert story game designer. You are revising a story concept, fleshing it out and improving it.
+
+    The initial story request provided by the player is the following:
+
+    <UserRequest>
+    {{user_request}}
+    </UserRequest>
 
     The story concept so far is made up of the following parts:
 
@@ -129,30 +167,46 @@ def prompt_gen_second_draft_premise(
 
     Respond with a repeat of the original input tags, along with some new additional fields. Use XML tags to delimit fields. Respond with all of the following tags:
 
+    <Critique>
+    Critique the original story. What works? What doesn't work? What would make it better? This will inform your edits.
+
+    Keep in mind the following:
+    - Is anything vague or unclear? Make things specific or remove them.
+    - Are there any plot holes or inconsistencies?
+    - Does each story tag fit it's definition?
+    </Critique>
     <StoryProblem>
-    Expand and edit the original
+    The story problem is the main conflict that the game is about. This problem should be made clear to the player from the very beginning, along with some initial choices that will provide the player with some ideas how they can begin to solve the problem. What is the initial suggested course of action? The story problem should make clear why the character personally cares about the problem, as well as the overall stakes.
+
+    Expand and edit the original according to the critique.
     </StoryProblem>
     <HiddenClues>
-    <Clue>
-    Determine a fresh new list of clues based on what you like about the first draft. You may add and expand some of the previous clues only if they are relevant and very high quality.
+    <Clue id="unique-kebab-case-clud-id">
+    In solving the story problem, the player will need to explore the world of the story and uncover clues that will ultimately help them uncover the story's mystery and solve the story problem. There may be many, but describe the most important clues that they will need to discover in order to reveal the true nature of the story problem and the secret to how to solve it. Describe each clue in detail as well as the impact it will have on the players understanding of the story and it's solution.
     </Clue>
-    <Clue>
-    Respond with each clue in a separate element. Generate {{n_clues_min}} to {{n_clues_max}} clues total.
+    <Clue id="the-second-clue">
+    Determine a fresh new list of clues based on what you like about the first draft. You may add and expand some of the previous clues only if they are relevant and very high quality.
+
+    Respond with each clue in a separate element. Generate {{n_clues_min}} to {{n_clues_max}} clues total. Stop generating clues before they stop adding value and become repetitive or far fetched.
     </Clue>
     </HiddenClues>
     <PromiseOfThePremise>
-    <Opportunity>
-    Given the story type and world. Come up with story elements and opportunities that a reader would expect in this type of story. First explain what the user expects and generally how this element fulfills it. Then make it specific. Make up another character, place, or event that would be expected in this type of story.
+    <Opportunity id="unique-kebab-case-opportunity-id">
+    Given the story type and world, come up with story elements and opportunities that a reader would expect in this type of story. First explain what the user expects and generally how this element fulfills it. Then make it specific. Make up a character, place, or event that would be expected in this type of story.
     </Opportunity>
-    <Opportunity>
-    Respond with between {{n_elements_min}} and {{n_elements_max}} story elements total.
+    <Opportunity id="the-second-opportunity">
+    Respond with between {{n_elements_min}} and {{n_elements_max}} story elements total. Stop generating opportunities before they stop adding value and become repetitive or far fetched.
     </Opportunity>
     </PromiseOfThePremise>
     <SurpriseTwist>
-    Expand and edit the original
+    When the player has successfully accumulated all of the clues and is ready to solve the story problem, the story takes a surprising turn that subverts the player's expectations of the true nature of the story problem and its solution.
+
+    Expand and edit the original according to the critique.
     </SurpriseTwist>
     <UltimateResolution>
-    Expand and edit the original
+    The "Ultimate Resolution" describes how does the story ends. What does the player ultimately discover about the world? With all the clues successfully assembled, what final action and/or challenge will the player need to take to resolve the story problem?
+
+    Expand and edit the original according to the critique.
     </UltimateResolution>
     <GameState>
     Using the scene and sequel methodology, describe whether the game should start in an action or reaction state. (jumping into the action, or starting with background introspection). Respond with only the text "Action" or "Reaction" within the xml GameState tag.
@@ -162,19 +216,53 @@ def prompt_gen_second_draft_premise(
 
     If the <GameState> is "Action" then kick the story off with a bang, requiring the player to act on their feet. Otherwise, if the <GameState> is "Reaction" then keep the game exploratory and introspective, slowly revealing background information that will inform the progression to the next Action.
 
+    Keep in mind the following for good writing:
+    - Show don't tell.
+    - This is a game, use 3rd person present tense.
+    - Take time to establish a clear status quo before introducing the story problem. Do not divulge the full story problem in the introduction. Wait for the player's input before revealing more. The story problem should always be revealed piecemeal over the course of several turns of player/game response. DO NOT DIVULGE THE MAIN STORY PROBLEM. Only tease at its edges. Remember to give the player character smaller more mundane goals to focus on while the main story goals are being established over the course of hundreds of turns of player/game response.
+    - Describe sensory details that flesh out the space.
+    - Describe the player character's inner state, for example if they are excited, nervous, etc. The player character's inner state will inform the sensory details that they notice.
+    - If there are other characters, there should always be dialogue. This dialogue can either inform the story, or else be textural flavor.
+
     Note that the game ONLY controls external elements. The game NEVER controls the movement, speech, or actions of the player character THIS IS COMPLETELY OFF LIMITS. The player must be prompted for the player character's actions.
     </Introduction>
     <GameElements>
     <Element id="each-element-has-a-unique-readable-kabob-case-id">
-    A game element is a concrete "actor" in the story that already exists. For example: a character, object, place, event, etc. Frequently "Opportunity" or "Clue" elements become a game "Element" after they are introduced to the player. Only define elements that have been introduced to the character, for example in the "Introduction"
+    A game element is a concrete "actor" in the story that already exists. For example: a character, object, place, event, etc. Frequently "Opportunity" or "Clue" elements become a game "Element" after they are introduced to the player. Only define elements that have been introduced to the player character, for example in the text of the "Introduction"
 
-    Game element descriptions are not visible to the player. Store internal motivations or backstory for the element here in the XML tags. Game elements bring the story to life that may (or may not) be revealed to the player as the story progresses.
+    Game element descriptions are not visible to the player. Describe and keep track of internal motivations or backstory for the elements here. You may sample from these details as you further develop the story writing, for example in future dialogue or scenes.
     </Element>
     <Element>
     For this draft, establish any game elements that are needed to make the story introduction feel rich.
     </Element>
     </GameElements>
     """
+
+
+def parse_premise_second_draft(premise_response: str) -> PremiseDraft:
+    soup = BeautifulSoup(premise_response, "html.parser")
+    return PremiseDraft(
+        critique=soup.critique.text.strip(),
+        story_problem=soup.storyproblem.text.strip(),
+        hidden_clues=[
+            TypelessGameElement(id=clue.attrs["id"], text=clue.text.strip())
+            for clue in soup.hiddenclues.find_all("clue")
+        ],
+        surprise_twist=soup.surprisetwist.text.strip(),
+        ultimate_resolution=soup.ultimateresolution.text.strip(),
+        opportunities=[
+            TypelessGameElement(
+                id=opportunity.attrs["id"], text=opportunity.text.strip()
+            )
+            for opportunity in soup.promiseofthepremise.find_all("opportunity")
+        ],
+        game_state=soup.gamestate.text.strip(),
+        introduction=soup.introduction.text.strip(),
+        game_elements=[
+            TypelessGameElement(id=element.attrs["id"], text=element.text.strip())
+            for element in soup.gameelements.find_all("element")
+        ],
+    )
 
 
 @outlines.prompt
@@ -592,9 +680,9 @@ def dump_events(
     max_events: Optional[int] = None,
 ) -> str:
     logs_to_take = (
-        time_node.event_log
+        time_node.game_log
         if max_events is None
-        else time_node.event_log[-1 * max(0, max_events - len(recent_events)) :]
+        else time_node.game_log[-1 * max(0, max_events - len(recent_events)) :]
     )
     response = "\n".join([event.model_dump_json(indent=2) for event in logs_to_take])
     if len(recent_events):
@@ -611,15 +699,3 @@ def dump_game_elements(game_elements: List[GameElement]) -> str:
         + ",\n".join([el.model_dump_json(indent=2) for el in game_elements])
         + "\n]"
     )
-
-
-def dump_retired_game_elements(game_elements: List[RetiredGameElement]) -> str:
-    def dump_one(retired_game_element: RetiredGameElement) -> str:
-        return json.dumps(
-            {
-                "id": retired_game_element.id,
-                "retired_reason": retired_game_element.retired_reason,
-            }
-        )
-
-    return "[\n" + ",\n".join([dump_one(el) for el in game_elements]) + "\n]"

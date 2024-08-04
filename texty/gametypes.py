@@ -1,4 +1,6 @@
+from dataclasses import dataclass
 from typing import List, Literal, Optional, Union
+from uuid import uuid4
 from pydantic import BaseModel, Field
 
 
@@ -14,11 +16,18 @@ class TimeNode(BaseModel):
         description="The number of player/game response turns that have occurred",
         default=0,
     )
-    premise: str = Field(description="What's the premise of this story")
-    # world_summary: List[str] = Field(description="world details")
     summary: str = Field(
         description="A brief summary of what occurred in this time node",
         default="(None)",
+    )
+
+    story_problem: str = Field(description="The story problem")
+    surprise_twist: str = Field(description="The surprise twist")
+    ultimate_resolution: str = Field(description="The ultimate resolution")
+
+    game_state: Literal["Action", "Reaction"] = Field(
+        description="The current game state",
+        default="Action",
     )
     response_plan: Optional[str] = Field(
         default=None,
@@ -26,149 +35,78 @@ class TimeNode(BaseModel):
     )
     previous: List[str] = Field(
         default_factory=list,
-        description="The ID of the previous time node. First in the list is the root node, last is the parent",
+        description="The ID of the previous time nodes. First in the list is the root node, last is the parent",
     )
-    event_log: List["LogItem"] = Field(
+    game_log: List["LogItem"] = Field(
         default_factory=list,
-        description="summarizes the historical player actions and story responses in a linear fashion.",
-    )
-    last_update: Optional["GameElementUpdate"] = Field(
-        default=None,
-        description="Debug-only, last update to the game elements in the story",
+        description="The historical player actions and story responses in a linear fashion.",
     )
     game_elements: List["GameElement"] = Field(
-        description="Planning nodes in the story",
+        description="active game elements and their backstory / inner state",
         default_factory=list,
     )
-    retired_game_elements: List["RetiredGameElement"] = Field(
+    opportunities: List["GameElement"] = Field(
+        description="opportunities that may be added to the story",
         default_factory=list,
     )
 
     def scenario_id(self) -> str:
         return self.previous[0] if len(self.previous) else self.id
 
-    def apply_update(self, update: "GameElementUpdate") -> "TimeNode":
-        self.last_update = update
-        for evt in update.events:
-            match evt:
-                case AddGameElement():
-                    print("process add game element", evt)
-                    evt: AddGameElement = evt
-                    new_element = GameElement(**evt.model_dump())
-                    self.game_elements.append(new_element)
-                case RetireGameElement():
-                    print("process retire game element", evt)
-                    evt: RetireGameElement = evt
-                    existing = next(
-                        (
-                            i
-                            for i, x in enumerate(self.game_elements)
-                            if x.element_id == update.element_id
-                        ),
-                        None,
-                    )
-                    if existing is not None:
-                        item = self.game_elements.pop(existing)
-                        self.retired_game_elements.append(
-                            RetiredGameElement(
-                                {
-                                    "retired_reason": evt.retired_reason,
-                                    **item.model_dump(),
-                                }
-                            )
-                        )
-                    self.retired_game_elements.append(update.element)
-                case UpdateGameElement():
-                    evt: UpdateGameElement = evt
-                    existing = next(
-                        (
-                            x
-                            for x in self.game_elements
-                            if x.element_id == evt.element_id
-                        ),
-                        None,
-                    )
-                    if existing is not None:
-                        if evt.replace.past:
-                            existing.past = evt.replace.past
-                        if evt.replace.present:
-                            existing.present = evt.replace.present
-                        if evt.replace.future:
-                            existing.future = evt.replace.future
-                        if evt.add.past:
-                            existing.past.extend(evt.add.past)
-                        if evt.add.present:
-                            existing.present.extend(evt.add.present)
-                        if evt.add.future:
-                            existing.future.extend(evt.add.future)
-                case EndGame():
-                    pass
-                case other:
-                    raise ValueError(f"Unknown event type {other}")
+    @classmethod
+    def from_premise(cls, premise: "PremiseDraft") -> "TimeNode":
+        return TimeNode(
+            id=str(uuid4()),
+            timestep=0,
+            story_problem=premise.story_problem,
+            surprise_twist=premise.surprise_twist,
+            ultimate_resolution=premise.ultimate_resolution,
+            game_state=premise.game_state,
+            game_log=[],
+            game_elements=[
+                GameElement(
+                    id=x.id,
+                    element_type="actor",
+                    state=x.text,
+                )
+                for x in premise.game_elements
+            ],
+            opportunities=[
+                GameElement(
+                    id=x.id,
+                    element_type="premise",
+                    state=x.text,
+                )
+                for x in premise.opportunities
+            ],
+        )
+
+
+@dataclass
+class PremiseDraft:
+    critique: str = Field(default="")
+    story_problem: str = Field(default="")
+    hidden_clues: List["TypelessGameElement"] = Field(default_factory=list)
+    surprise_twist: str = Field(default="")
+    ultimate_resolution: str = Field(default="")
+    opportunities: List["TypelessGameElement"] = Field(default_factory=list)
+    game_state: Literal["Action", "Reaction"] = Field(default="Action")
+    # introduction: str = Field(default="")
+    game_elements: List["TypelessGameElement"] = Field(default_factory=list)
+
+
+@dataclass
+class TypelessGameElement:
+    id: str
+    text: str
 
 
 class GameElement(BaseModel):
-    element_id: str = Field(
+    id: str = Field(
         description="The unique id for the game element. A readable kebab-case slug"
     )
-    name: str = Field(description="A short name of the game element")
-    element_type: Literal[
-        "character", "object", "place", "eventuality", "theme", "event", "goal", "idea"
-    ]
-    past: List[str] = Field(
-        description="Backstory of the game element", default_factory=list
-    )
-    present: List[str] = Field(
-        description="Descriptions of the game element. Includes events that have occurred to the event over the course of the game",
-        default_factory=list,
-    )
-    future: List[str] = Field(
-        description="Directions or goals for this game element. Used for speculative future planning. Conflicting goals with other elements are a primary source of story conflict",
-        default_factory=list,
-    )
-
-
-class RetiredGameElement(GameElement):
-    retired_reason: str
-
-
-class AddGameElement(BaseModel):
-    type: Literal["add_game_element"]
-    element_id: str
-    name: str
-    element_type: Literal[
-        "character", "object", "place", "eventuality", "theme", "event", "goal", "idea"
-    ]
-    past: List[str] = Field(default_factory=list)
-    present: List[str] = Field(default_factory=list)
-    future: List[str] = Field(default_factory=list)
-
-
-class RetireGameElement(BaseModel):
-    type: Literal["retire_game_element"]
-    element_id: str
-    retired_reason: str
-
-
-class GameElementUpdate(BaseModel):
-    response_plan: str
-    events: List[
-        Union[AddGameElement, RetireGameElement, "EndGame", "UpdateGameElement"]
-    ] = Field(default_factory=list)
-    summary: str
-
-
-class PastPresentFuture(BaseModel):
-    past: Optional[List[str]] = None
-    present: Optional[List[str]] = None
-    future: Optional[List[str]] = None
-
-
-class UpdateGameElement(BaseModel):
-    type: Literal["update_game_element"]
-    element_id: str
-    add: PastPresentFuture = Field(default_factory=PastPresentFuture)
-    replace: PastPresentFuture = Field(default_factory=PastPresentFuture)
+    element_type: Literal["clue", "premise", "actor"]
+    state: str = Field(description="The inner state of the game element")
 
 
 class EndGame(BaseModel):
@@ -178,7 +116,7 @@ class EndGame(BaseModel):
 
 
 class LogItem(BaseModel):
-    role: Literal["player", "game", "internal"]
+    role: Literal["player", "game"]
     type: Literal["act", "inspect", "other", "ambiguous", "game-response"]
     text: str
     timestep: int = Field(

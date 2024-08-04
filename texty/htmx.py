@@ -289,7 +289,7 @@ async def websocket_handler(socket: WebSocket):
 
         await stream_msg("game", scenario.start_if_not_started_async())
         await set_messages(
-            [evt for evt in scenario.node.event_log if evt.role != "internal"]
+            [evt for evt in scenario.node.game_log if evt.role != "internal"]
         )
 
         while True:
@@ -302,7 +302,7 @@ async def websocket_handler(socket: WebSocket):
                     await set_messages(
                         [
                             evt
-                            for evt in scenario.node.event_log
+                            for evt in scenario.node.game_log
                             if evt.role != "internal"
                         ]
                     )

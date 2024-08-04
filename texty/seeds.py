@@ -33,11 +33,11 @@ def list_seeds() -> List[str]:
     )
 
 
-zantar = get_seed("zantar")
-lost_expedition = get_seed("lost_expedition")
-blackwood_manor = get_seed("blackwood_manor")
-time_travelers_dilemma = get_seed("time_travelers_dilemma")
-postapocalypse = get_seed("postapocalypse")
+# zantar = get_seed("zantar")
+# lost_expedition = get_seed("lost_expedition")
+# blackwood_manor = get_seed("blackwood_manor")
+# time_travelers_dilemma = get_seed("time_travelers_dilemma")
+# postapocalypse = get_seed("postapocalypse")
 
 # '''"The Haunting of Hollow Hill": As Emily Everly, a paranormal investigator, you are called to the remote town of Hollow Hill to investigate a series of mysterious disappearances. As you delve into the town's dark history and encounter restless spirits, you must uncover the truth behind the haunting before it claims your own soul.'''
 # '''"The Arctic Obsidian": Join Captain James Mallory on a perilous expedition to the Arctic Circle in search of a legendary gem known as the Arctic Obsidian. As you traverse treacherous ice fields and fend off rival explorers, you must navigate the harsh terrain and ancient curses that guard the precious stone.'''

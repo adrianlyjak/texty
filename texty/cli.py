@@ -52,7 +52,7 @@ def run_scenario(scenario_id: str, seed: TimeNode = seeds.zantar) -> TimeNode:
                 parts = action.split(" ")
                 if len(parts) > 1:
                     maxlen = int(parts[1])
-                for event_log in game.node.event_log:
+                for event_log in game.node.game_log:
                     prefix = f"> {event_log.role}({event_log.type}): "
                     start = int(maxlen / 2 - 5)
                     end = int((-1 * maxlen / 2))
