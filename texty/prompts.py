@@ -266,6 +266,11 @@ def parse_premise_second_draft(premise_response: str) -> PremiseDraft:
 
 
 @outlines.prompt
+def prompt_plan_introduction(tn: TimeNode):
+    """ """
+
+
+@outlines.prompt
 def desc_intent_inspect():
     """
     Inspect - In response to requests of this type, the game will provide information about the game, doing some basic extrapolation about what would be realistic to the scenario, without affecting signifant change or time advancing (e.g. no travel occurs, just auditory and visual descriptions of the world). The player may only interact with his immediate environment, walking short distances, for example around a small room.

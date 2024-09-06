@@ -52,3 +52,24 @@ Objects are stored in this directory in `texty.db`
 ![Load Game](./img/loading.png)
 
 ![Game in Progress](./img/gameplay.png)
+
+
+
+---
+
+TODO:
+- opportunity index
+    - clues
+    - interesting characters (need certain information about them)
+        - what's their internal perspective
+        - personal private motivation, how it relates to the story problem
+        - the ways in which they act normally (ticks, energy, mannerisms)
+        - how they act when under pressure/work (thought/execution process. General approach to problem solving. How approach conflict, and how they change when under stress)
+        - Make sure that they are significantly different
+    - beats
+- need to define PC internal motivation and how it relates to the story problem
+
+
+
+Execution
+- characters need to 
