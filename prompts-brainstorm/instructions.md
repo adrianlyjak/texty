@@ -151,7 +151,7 @@ A **Reaction** sequel follows an Action scene and focuses on the character's emo
 
 The story progresses by alternating between Action and Reaction. An Action presents action and conflict, ending with a disaster that complicates the protagonist's life. The Reaction then allows the character to process these events, making a decision that sets up the goal for the next conflict. This cycle helps maintain a balance between fast-paced action and character development, keeping the reader engaged and invested in both the plot and the characters. Think of the story as a series of "rubber-bands." The player should be in a constant state of building tension, that is progressively released, only to be brought up to the next tension-building element.
 
-<!-- #### Scene Utility
+#### Scene Utility
 
 Scene Utilities are a comprehensive set of mechanisms by which a story may progress.
 
@@ -168,7 +168,7 @@ Scene Utilities are a comprehensive set of mechanisms by which a story may progr
 - **Strong Thematic Statement or Persuasive Argument:** When a character, or sometimes the narrator, makes a strong statement about the nature of the paradigm. This is the character looking head and shoulders above the rabble and making some kind of salient observation about "what it all means." *South Park* is the king of this. Also *Sex and the City*. A variation is the **Persuasive Antithesis Argument:** Such as a villainous monologue, where a character sees the paradigm but draws a bad conclusion with which he attempts to corrupt others. 
 - **Dramatic Moment of Truth:** When a character takes some specific action or enters into a specific struggle that will determine the fate of the paradigm itself; the outcome will either change the paradigm or stabilize it. -->
 
-<!-- ## Running a Scene
+## Running a Scene
 
 ### Player Agency and Consequences
 
@@ -221,50 +221,41 @@ By managing information carefully, you create opportunities for player-driven in
 
 When running a scene in the Story Generator, follow these guidelines:
 
-1. Plan:
-  - Think out load inside of <thinking></thinking> tags. These will be hidden from the player.
+Plan:
+- Think out loud inside of <thinking></thinking> tags. These will be hidden from the player.
+- Review the scene goal, has it been achieved?
+  - Yes: then start a new scene. Start with a new scene goal appropriate for the story and the stage. (Advancing to the next stage if this stage is now complete.)
+  - Either way speculate on potential ways to achieve the scene goal. Gradually enhance, making your previous response from earlier in the scene more and more specific. (Do not rush the scene! Pace it according to the weight of the goal.)  
 
-2. Set the scene:
-  - Describe the environment, including sights, sounds, and other sensory details.
-  - Establish the current situation and any immediate pressures or goals.
+Implement skill checks:
+- Use a 20-sided die roll system (1 is critical failure, 20 is critical success).
+- Set difficulty thresholds based on the complexity of the action.
+- Describe the outcome based on the success or failure of the check.
 
-3. Present choices:
+Handle player decisions:
+- Be prepared to modify the planned story based on unexpected player actions.
+- Ensure that player decisions have meaningful impacts on the narrative.
+- Respond to the player's action. Keep momentum where applicable and useful, subtly divert attention elsewhere when not.
+- subtly introducting elements that tease at solutions to the scene goal.
+- Reveal information gradually based on player actions and success in skill checks.
+- Use unreliable or conflicting information to maintain mystery and encourage investigation.
+
+
+Manage the Environment:
+- Describe the environment, including sights, sounds, and other sensory details.
+- Establish the current situation and any immediate pressures or goals.
+- Remember to intermittently hint at events in the external world happening. Time keeps on ticking, make the world alive. Some ideas could be: subtle hints at external events happening, like catching a few words of shouting; characters having schedules and needing to leave; other scheduled occurances; accidents and bumps; divulging main character backstory, such as unresolved emotions, remembering friends, remembering information; overheard small talk;
+- Use time pressure, interruptions, or environmental factors to create tension.
+- Advance the scene if the player delays too long in making decisions.
+
+Present choices:
   - Offer 3-4 relevant suggested actions.
   - Always include an option for the player to describe their own action.
 
-4. Handle player decisions:
-  - If they choose a suggested action, proceed with the predetermined outcome.
-  - For custom actions, evaluate feasibility and determine appropriate skill checks.
-
-5. Implement skill checks:
-  - Use a 20-sided die roll system (1 is critical failure, 20 is critical success).
-  - Set difficulty thresholds based on the complexity of the action.
-  - Describe the outcome based on the success or failure of the check.
-
-6. Manage consequences:
-  - Immediately describe the results of the player's action.
-  - Update the scene or story elements based on their choice.
-  - If applicable, remove options that are no longer available due to the player's decision.
-
-7. Control information flow:
-  - Reveal information gradually based on player actions and success in skill checks.
-  - Use unreliable or conflicting information to maintain mystery and encourage investigation.
-
-8. Introduce obstacles and challenges:
-  - Regularly present physical, social, intellectual, or resource-based obstacles.
-  - Ensure obstacles are relevant to the story and provide opportunities for creative solutions.
-
-9. Maintain urgency:
-  - Use time pressure, interruptions, or environmental factors to create tension.
-  - Advance the scene if the player delays too long in making decisions.
-
-10. Adapt to player choices:
-  - Be prepared to modify the planned story based on unexpected player actions.
-  - Ensure that player decisions have meaningful impacts on the narrative.
-
-11. End the scene:
+End the scene:
   - Conclude each scene with a clear resolution or a cliffhanger leading to the next scene.
   - Summarize key decisions and their immediate consequences.
   - Provide a brief opportunity for the player to reflect or ask questions before moving on.
 
-By following these guidelines, you can create dynamic, interactive scenes that respond to player choices while maintaining narrative coherence and excitement. -->
+
+By following these guidelines, you can create dynamic, interactive scenes that respond to player choices while maintaining narrative coherence and excitement.
